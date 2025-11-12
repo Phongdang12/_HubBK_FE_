@@ -1,0 +1,44 @@
+<svg width="140" height="140" viewBox="0 0 140 140" fill="none" xmlns="http://www.w3.org/2000/svg">
+	<!-- Viền trắng ngoài cùng -->
+	<!-- Nền trắng -->
+	<!-- Di chuyển hình logo lên trên -->
+			<g transform="translate(0,-35)">
+				<path d="M30 110 L70 40 L110 110 Z" stroke="#222" stroke-width="5" fill="none" />
+				<path d="M30 110 L70 40 L110 110 Z" stroke="white" stroke-width="2" fill="none" />
+				<rect x="40" y="80" width="60" height="30" rx="2" stroke="#222" stroke-width="5" fill="none" />
+				<rect x="40" y="80" width="60" height="30" rx="2" stroke="white" stroke-width="2" fill="none" />
+				<rect x="25" y="110" width="30" height="15" rx="2" stroke="#222" stroke-width="5" fill="none" />
+				<rect x="25" y="110" width="30" height="15" rx="2" stroke="white" stroke-width="2" fill="none" />
+				<rect x="85" y="110" width="30" height="15" rx="2" stroke="#222" stroke-width="5" fill="none" />
+				<rect x="85" y="110" width="30" height="15" rx="2" stroke="white" stroke-width="2" fill="none" />
+				<rect x="50" y="90" width="8" height="8" stroke="#222" stroke-width="2" fill="none" />
+				<rect x="50" y="90" width="8" height="8" stroke="white" stroke-width="1" fill="none" />
+				<rect x="62" y="90" width="8" height="8" stroke="#222" stroke-width="2" fill="none" />
+				<rect x="62" y="90" width="8" height="8" stroke="white" stroke-width="1" fill="none" />
+				<rect x="74" y="90" width="8" height="8" stroke="#222" stroke-width="2" fill="none" />
+				<rect x="74" y="90" width="8" height="8" stroke="white" stroke-width="1" fill="none" />
+				<rect x="86" y="90" width="8" height="8" stroke="#222" stroke-width="2" fill="none" />
+				<rect x="86" y="90" width="8" height="8" stroke="white" stroke-width="1" fill="none" />
+				<rect x="50" y="102" width="8" height="8" stroke="#222" stroke-width="2" fill="none" />
+				<rect x="50" y="102" width="8" height="8" stroke="white" stroke-width="1" fill="none" />
+				<rect x="62" y="102" width="8" height="8" stroke="#222" stroke-width="2" fill="none" />
+				<rect x="62" y="102" width="8" height="8" stroke="white" stroke-width="1" fill="none" />
+				<rect x="74" y="102" width="8" height="8" stroke="#222" stroke-width="2" fill="none" />
+				<rect x="74" y="102" width="8" height="8" stroke="white" stroke-width="1" fill="none" />
+				<rect x="86" y="102" width="8" height="8" stroke="#222" stroke-width="2" fill="none" />
+				<rect x="86" y="102" width="8" height="8" stroke="white" stroke-width="1" fill="none" />
+				<ellipse cx="70" cy="75" rx="12" ry="16" stroke="#222" stroke-width="5" fill="none" />
+				<ellipse cx="70" cy="75" rx="12" ry="16" stroke="white" stroke-width="2" fill="none" />
+				<circle cx="70" cy="80" r="6" fill="white" stroke="#222" stroke-width="2" />
+				<circle cx="70" cy="80" r="6" fill="none" stroke="white" stroke-width="1" />
+	<text x="70" y="83" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="6.5" font-weight="bold" fill="#222">BK</text>
+				<rect x="60" y="120" width="20" height="12" rx="2" stroke="#222" stroke-width="4" fill="none" />
+				<rect x="60" y="120" width="20" height="12" rx="2" stroke="white" stroke-width="2" fill="none" />
+				<rect x="67" y="126" width="6" height="6" stroke="#222" stroke-width="2" fill="none" />
+				<rect x="67" y="126" width="6" height="6" stroke="white" stroke-width="1" fill="none" />
+				<rect x="15" y="135" width="110" height="4" rx="2" fill="#222" />
+				<rect x="15" y="135" width="110" height="4" rx="2" fill="none" stroke="white" stroke-width="2" />
+			</g>
+	<!-- Chữ DormHub phía dưới -->
+		<text x="70" y="132" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="22" font-weight="bold" fill="white">DormHub</text>
+</svg>
