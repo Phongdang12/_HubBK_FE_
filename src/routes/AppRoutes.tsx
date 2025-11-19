@@ -14,6 +14,8 @@ import Disciplines from '@/pages/discipline/Disciplines';
 import AddDiscipline from '@/pages/discipline/AddDisciplinePage';
 import EditDisciplinePage from '@/pages/discipline/EditDisciplinePage';
 import ViewDisciplinePage from '@/pages/discipline/ViewDisciplinePage';
+import ViewRoomPage from '@/pages/rooms/ViewRoomPage';
+import EditRoomPage from '@/pages/rooms/EditRoomPage';
 
 export const appRoutes: RouteObject[] = [
   {
@@ -131,6 +133,22 @@ export const appRoutes: RouteObject[] = [
     element: (
       <PrivateRoute>
         <EditDisciplinePage />
+      </PrivateRoute>
+    ),
+  },
+    {
+    path: '/rooms/view/:buildingId/:roomId',
+    element: (
+      <PrivateRoute>
+        <ViewRoomPage />
+      </PrivateRoute>
+    ),
+  },
+  {
+    path: '/rooms/edit/:buildingId/:roomId',
+    element: (
+      <PrivateRoute>
+        <EditRoomPage />
       </PrivateRoute>
     ),
   },

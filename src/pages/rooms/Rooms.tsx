@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import RoomHeader from './components/RoomsHeader';
 import RoomFilter from './components/RoomsFilter';
 import RoomTable from './components/RoomsTable';
 import RoomDetailDialog from './components/RoomsDetailDialog';
@@ -25,26 +24,25 @@ const Rooms = () => {
   const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
   const [openDialog, setOpenDialog] = useState(false);
 
-  const [mode, setMode] = useState<'all' | 'underoccupied'>('all');
+  const [mode] = useState<'all' | 'underoccupied'>('all');
 
-  const fetchRooms = async (
-    currentMode: 'all' | 'underoccupied',
-    currentBuilding: string,
-  ) => {
+  // ✅ Phân trang
+  const [page, setPage] = useState(1);
+  const [limit] = useState(8);
+  const [totalPages, setTotalPages] = useState(1);
+
+  const handleSort = () => {
+    const next = sortOrder === 'asc' ? 'desc' : 'asc';
+    setSortOrder(next);
+  };
+
+  const fetchRooms = async (currentMode: 'all' | 'underoccupied', currentBuilding: string) => {
     try {
       let data: Room[] = [];
       if (currentBuilding === 'all') {
-        if (currentMode === 'all') {
-          data = await getAllRooms();
-        } else {
-          data = await getUnderoccupiedRooms();
-        }
+        data = currentMode === 'all' ? await getAllRooms() : await getUnderoccupiedRooms();
       } else {
-        if (currentMode === 'all') {
-          data = await getRoomsByBuilding(currentBuilding);
-        } else {
-          data = await getUnderoccupiedRoomsByBuilding(currentBuilding);
-        }
+        data = currentMode === 'all' ? await getRoomsByBuilding(currentBuilding) : await getUnderoccupiedRoomsByBuilding(currentBuilding);
       }
       setRooms(data);
     } catch (error) {
@@ -53,16 +51,18 @@ const Rooms = () => {
     }
   };
 
+  // Fetch rooms khi thay đổi mode/building
   useEffect(() => {
     fetchRooms(mode, selectedBuilding);
   }, [mode, selectedBuilding]);
 
+  // Lọc + sort + phân trang
   useEffect(() => {
     let result = [...rooms];
 
     if (searchQuery) {
       result = result.filter((room) =>
-        room.room_id?.toLowerCase().includes(searchQuery.toLowerCase()),
+        room.room_id?.toLowerCase().includes(searchQuery.toLowerCase())
       );
     }
 
@@ -72,20 +72,14 @@ const Rooms = () => {
       result.sort((a, b) => (b.room_id || '').localeCompare(a.room_id || ''));
     }
 
-    setFilteredRooms(result);
-  }, [rooms, searchQuery, sortOrder]);
+    // ✅ Tính tổng trang
+    setTotalPages(Math.ceil(result.length / limit));
 
-  const handleModeToggle = () => {
-    // Reset toàn bộ state về ban đầu
-    setRooms([]);
-    setFilteredRooms([]);
-    setSearchQuery('');
-    setSelectedBuilding('all');
-    setSortOrder('none');
-    setSelectedRoom(null);
-    setOpenDialog(false);
-    setMode((prev) => (prev === 'all' ? 'underoccupied' : 'all'));
-  };
+    // ✅ Lấy dữ liệu trang hiện tại
+    const start = (page - 1) * limit;
+    const end = start + limit;
+    setFilteredRooms(result.slice(start, end));
+  }, [rooms, searchQuery, sortOrder, page, limit]);
 
   return (
     <div className='flex min-h-screen w-full flex-col'>
@@ -93,41 +87,54 @@ const Rooms = () => {
       <div className='flex flex-1'>
         <Sidebar />
         <main className='flex flex-1 flex-col justify-between bg-gray-100'>
-          <div className='px-8 py-6'>
-            <RoomHeader />
-            <div className='rounded-xl bg-white p-6 shadow-md'>
-              <div className='mb-4 flex items-center justify-between'>
-                <h2 className='text-[20px] font-semibold'>
-                  {mode === 'all'
-                    ? 'All Rooms List'
-                    : 'Underoccupied Rooms List'}
-                </h2>
-                <button
-                  className='rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700'
-                  onClick={handleModeToggle}
-                >
-                  {mode === 'all'
-                    ? 'Show Underoccupied Rooms'
-                    : 'Show All Rooms'}
-                </button>
+          <div className='p-8'>
+            <div className='rounded-xl bg-white pb-6 shadow-md'>
+              <div className='sticky top-0 z-20 rounded-xl bg-white px-6 pt-7 pb-2'>
+                <div className='flex items-center justify-between mb-5'>
+                  <h2 className='text-xl font-semibold'>Room List</h2>
+                </div>
+
+                <RoomFilter
+                  searchQuery={searchQuery}
+                  setSearchQuery={setSearchQuery}
+                  onSearch={() => setPage(1)}
+                />
               </div>
 
-              <RoomFilter
-                searchQuery={searchQuery}
-                setSearchQuery={setSearchQuery}
-                selectedBuilding={selectedBuilding}
-                setSelectedBuilding={setSelectedBuilding}
-                sortOrder={sortOrder}
-                setSortOrder={setSortOrder}
-              />
-              <div className='mt-4 rounded-md border'>
+              <div className='mt-0 mx-6 h-[500px] overflow-y-auto rounded-md border'>
                 <RoomTable
                   rooms={filteredRooms}
                   onView={(room) => {
                     setSelectedRoom(room);
                     setOpenDialog(true);
                   }}
+                  sortOrder={sortOrder}
+                  onSort={handleSort}
+                  selectedBuilding={selectedBuilding}
+                  setSelectedBuilding={setSelectedBuilding}
+                  allBuildings={['BK001', 'BK002', 'BK003', 'BK004']}
                 />
+
+                {/* ✅ Pagination */}
+                <div className='flex justify-center items-center mt-4 space-x-2'>
+                  <button
+                    onClick={() => setPage((p) => Math.max(p - 1, 1))}
+                    disabled={page === 1}
+                    className='px-3 py-1 border rounded disabled:opacity-50'
+                  >
+                    Prev
+                  </button>
+                  <span>
+                    Page {page} / {totalPages}
+                  </span>
+                  <button
+                    onClick={() => setPage((p) => Math.min(p + 1, totalPages))}
+                    disabled={page === totalPages}
+                    className='px-3 py-1 border rounded disabled:opacity-50'
+                  >
+                    Next
+                  </button>
+                </div>
               </div>
             </div>
           </div>
