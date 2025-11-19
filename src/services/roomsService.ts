@@ -7,10 +7,6 @@ export interface Room {
   max_num_of_students: number;
   current_num_of_students: number;
   occupancy_rate: string;
-<<<<<<< HEAD
-}
-
-=======
   rental_price: string;
   room_status: 'Available' | 'Occupied' | 'Under Maintenance';
 }
@@ -45,7 +41,6 @@ export interface Student {
 }
 
 const API_URL = "http://localhost:3000/api/rooms";
->>>>>>> quan0
 const getAuthHeaders = () => {
   const token = localStorage.getItem('authToken');
   return {
@@ -75,8 +70,6 @@ export const getRoomsByBuilding = async (
   });
   return res.data;
 };
-<<<<<<< HEAD
-=======
 export const getRoomDetail = async (buildingId: string, roomId: string): Promise<Room> => {
   try {
     const response = await axios.get<Room>(`/api/rooms/${buildingId}/${roomId}`, {
@@ -116,7 +109,6 @@ export const updateRoom = async (
     throw new Error(error.response?.data?.message || 'Failed to update room');
   }
 };
->>>>>>> quan0
 
 export const getUnderoccupiedRoomsByBuilding = async (
   buildingId: string,
@@ -129,16 +121,3 @@ export const getUnderoccupiedRoomsByBuilding = async (
   );
   return res.data;
 };
-<<<<<<< HEAD
-
-// export const checkUnderoccupiedRoom = async (
-//   buildingId: string,
-//   roomId: string,
-// ): Promise<Room[]> => {
-//   const res = await axios.get<Room[]>(
-//     `/api/rooms/underoccupied/${buildingId}/${roomId}`,
-//   );
-//   return res.data;
-// };
-=======
->>>>>>> quan0

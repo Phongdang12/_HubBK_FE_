@@ -9,15 +9,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-<<<<<<< HEAD
-
-interface Props {
-  rooms: Room[];
-  onView: (room: Room) => void;
-}
-
-const RoomTable: FC<Props> = ({ rooms, onView }) => {
-=======
 import {
   Select,
   SelectContent,
@@ -43,21 +34,11 @@ const RoomTable: FC<Props> = ({
   allBuildings
 }) => {
   const navigate = useNavigate();
->>>>>>> quan0
   return (
     <Table>
       <TableHeader>
         <TableRow>
           <TableHead>Room ID</TableHead>
-<<<<<<< HEAD
-          <TableHead>Building ID</TableHead>
-          <TableHead>Max Students</TableHead>
-          <TableHead>Current Students</TableHead>
-          <TableHead>Occupancy Rate</TableHead>
-          <TableHead className='text-center'>Actions</TableHead>
-        </TableRow>
-      </TableHeader>
-=======
 <TableHead>
   <div className="flex items-center gap-2">
     <span>Building</span>
@@ -88,7 +69,6 @@ const RoomTable: FC<Props> = ({
         </TableRow>
       </TableHeader>
 
->>>>>>> quan0
       <TableBody>
         {rooms.length > 0 ? (
           rooms.map((room, index) => (
@@ -98,13 +78,6 @@ const RoomTable: FC<Props> = ({
               <TableCell>{room.max_num_of_students}</TableCell>
               <TableCell>{room.current_num_of_students}</TableCell>
               <TableCell>{room.occupancy_rate}</TableCell>
-<<<<<<< HEAD
-              <TableCell className='text-center'>
-                <Button
-                  size='sm'
-                  className='bg-blue-100 hover:bg-blue-200'
-                  onClick={() => onView(room)}
-=======
 
               {/* Status */}
               <TableCell>
@@ -157,7 +130,6 @@ const RoomTable: FC<Props> = ({
                   variant="default"
                   className="!bg-blue-500 !text-white "
                   onClick={() => navigate(`/rooms/view/${room.building_id}/${room.room_id}`)}
->>>>>>> quan0
                 >
                   View
                 </Button>
@@ -165,13 +137,8 @@ const RoomTable: FC<Props> = ({
             </TableRow>
           ))
         ) : (
-<<<<<<< HEAD
-          <TableRow key='no-data'>
-            <TableCell colSpan={6} className='text-center'>
-=======
           <TableRow key="no-data">
             <TableCell colSpan={7} className="text-center">
->>>>>>> quan0
               No rooms found
             </TableCell>
           </TableRow>
