@@ -10,6 +10,11 @@ import AddStudent from '@/pages/addstudent/AddStudent';
 import Rooms from '@/pages/rooms/Rooms';
 import ViewStudentPage from '@/pages/students/ViewStudentPage';
 import EditStudentPage from '@/pages/students/EditStudentPage';
+import Disciplines from '@/pages/discipline/Disciplines';
+import AddDiscipline from '@/pages/discipline/AddDisciplinePage';
+import EditDisciplinePage from '@/pages/discipline/EditDisciplinePage';
+import ViewDisciplinePage from '@/pages/discipline/ViewDisciplinePage';
+
 export const appRoutes: RouteObject[] = [
   {
     path: '/',
@@ -19,6 +24,8 @@ export const appRoutes: RouteObject[] = [
     path: '/login',
     element: <Login />,
   },
+
+  // Dashboard route: hiện tại không có children — bây giờ thêm children CHỈ CHO discipline
   {
     path: '/dashboard',
     element: (
@@ -26,7 +33,17 @@ export const appRoutes: RouteObject[] = [
         <Dashboard />
       </PrivateRoute>
     ),
+    children: [
+      // Nếu bạn muốn, có thể thêm mặc định vào Students ở đây, nhưng để tránh đụng chạm
+      // tôi chỉ thêm discipline routes vào children, giữ nguyên các route phía ngoài.
+      { path: 'disciplines', element: <Disciplines /> },
+      { path: 'disciplines/add', element: <AddDiscipline /> },
+      { path: 'disciplines/view/:action_id', element: <ViewDisciplinePage /> },
+      { path: 'disciplines/edit/:action_id', element: <EditDisciplinePage /> },
+    ],
   },
+
+  // Các route hiện có khác giữ nguyên (không thay đổi)
   {
     path: '/students',
     element: (
@@ -80,6 +97,40 @@ export const appRoutes: RouteObject[] = [
     element: (
       <PrivateRoute>
         <Rooms />
+      </PrivateRoute>
+    ),
+  },
+
+  // giữ nguyên route /disciplines cũ để không phá link đang dùng
+  {
+    path: '/disciplines',
+    element: (
+      <PrivateRoute>
+        <Disciplines />
+      </PrivateRoute>
+    ),
+  },
+  {
+    path: '/disciplines/add',
+    element: (
+      <PrivateRoute>
+        <AddDiscipline />
+      </PrivateRoute>
+    ),
+  },
+  {
+    path: '/disciplines/view/:action_id',
+    element: (
+      <PrivateRoute>
+        <ViewDisciplinePage />
+      </PrivateRoute>
+    ),
+  },
+  {
+    path: '/disciplines/edit/:action_id',
+    element: (
+      <PrivateRoute>
+        <EditDisciplinePage />
       </PrivateRoute>
     ),
   },
