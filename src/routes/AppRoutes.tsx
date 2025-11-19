@@ -10,6 +10,11 @@ import AddStudent from '@/pages/addstudent/AddStudent';
 import Rooms from '@/pages/rooms/Rooms';
 import ViewStudentPage from '@/pages/students/ViewStudentPage';
 import EditStudentPage from '@/pages/students/EditStudentPage';
+<<<<<<< HEAD
+=======
+import ViewRoomPage from '@/pages/rooms/ViewRoomPage';
+import EditRoomPage from '@/pages/rooms/EditRoomPage';
+>>>>>>> quan0
 export const appRoutes: RouteObject[] = [
   {
     path: '/',
@@ -83,4 +88,23 @@ export const appRoutes: RouteObject[] = [
       </PrivateRoute>
     ),
   },
+<<<<<<< HEAD
+=======
+  {
+    path: '/rooms/view/:buildingId/:roomId',
+    element: (
+      <PrivateRoute>
+        <ViewRoomPage />
+      </PrivateRoute>
+    ),
+  },
+  {
+    path: '/rooms/edit/:buildingId/:roomId',
+    element: (
+      <PrivateRoute>
+        <EditRoomPage />
+      </PrivateRoute>
+    ),
+  },
+>>>>>>> quan0
 ];

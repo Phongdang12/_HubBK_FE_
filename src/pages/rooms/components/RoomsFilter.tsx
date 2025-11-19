@@ -1,5 +1,6 @@
 import { FC } from 'react';
 import { Input } from '@/components/ui/input';
+<<<<<<< HEAD
 import {
   Select,
   SelectContent,
@@ -7,10 +8,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+=======
+import { Button } from '@/components/ui/button';
+>>>>>>> quan0
 
 interface Props {
   searchQuery: string;
   setSearchQuery: (val: string) => void;
+<<<<<<< HEAD
   selectedBuilding: string;
   setSelectedBuilding: (val: string) => void;
   sortOrder: 'none' | 'asc' | 'desc';
@@ -26,11 +31,19 @@ const RoomFilter: FC<Props> = ({
   setSortOrder,
 }) => (
   <div className='mb-4 flex flex-wrap items-center gap-4'>
+=======
+  onSearch: () => void; // callback khi nhấn nút Search
+}
+
+const RoomFilter: FC<Props> = ({ searchQuery, setSearchQuery, onSearch }) => (
+  <div className='mb-4 flex items-center gap-2'>
+>>>>>>> quan0
     <Input
       placeholder='Search by Room ID'
       value={searchQuery}
       onChange={(e) => setSearchQuery(e.target.value)}
       className='w-64'
+<<<<<<< HEAD
     />
 
     <Select
@@ -62,6 +75,13 @@ const RoomFilter: FC<Props> = ({
         <SelectItem value='BK004'>BK004</SelectItem>
       </SelectContent>
     </Select>
+=======
+      onKeyDown={(e) => e.key === 'Enter' && onSearch()}
+    />
+    <Button variant='secondary' onClick={onSearch}>
+      Search
+    </Button>
+>>>>>>> quan0
   </div>
 );
 

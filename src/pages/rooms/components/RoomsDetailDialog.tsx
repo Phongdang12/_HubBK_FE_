@@ -39,6 +39,12 @@ const RoomDetailDialog: FC<Props> = ({ open, onOpenChange, room }) => {
           <div>
             <strong>Occupancy Rate:</strong> {room.occupancy_rate}
           </div>
+<<<<<<< HEAD
+=======
+          <div>
+            <strong>Status:</strong> {room.room_status} {/* <-- Thêm dòng này */}
+          </div>
+>>>>>>> quan0
         </div>
       </DialogContent>
     </Dialog>
