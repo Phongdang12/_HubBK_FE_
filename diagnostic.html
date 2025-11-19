@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Diagnostic Tool - DormBK</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test { margin: 10px 0; padding: 10px; border-left: 3px solid #ccc; }
+        .success { border-color: green; background: #f0f8f0; }
+        .error { border-color: red; background: #f8f0f0; }
+        .warning { border-color: orange; background: #f8f4f0; }
+        pre { background: #f5f5f5; padding: 10px; overflow-x: auto; }
+        button { padding: 10px 15px; margin: 5px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h1>DormBK Diagnostic Tool</h1>
+    <p>This will help identify why your students page is blank.</p>
+
+    <div id="results"></div>
+
+    <button onclick="runAllTests()">Run All Tests</button>
+    <button onclick="testBackend()">Test Backend Only</button>
+    <button onclick="testFrontend()">Test Frontend Only</button>
+
+    <script>
+        const results = document.getElementById('results');
+
+        function addResult(title, status, details) {
+            const div = document.createElement('div');
+            div.className = `test ${status}`;
+            div.innerHTML = `
+                <h3>${title}</h3>
+                <pre>${details}</pre>
+            `;
+            results.appendChild(div);
+        }
+
+        async function testBackend() {
+            try {
+                addResult('Testing Backend Connection', 'warning', 'Checking if backend is running...');
+                
+                // Test 1: Backend Health
+                const healthRes = await fetch('http://localhost:3000/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ user_name: 'test', password: 'test' })
+                });
+                
+                if (healthRes.status === 404) {
+                    addResult('Backend Status', 'error', 'Backend server is not running on port 3000');
+                    return false;
+                } else {
+                    addResult('Backend Status', 'success', `Backend is running (status: ${healthRes.status})`);
+                }
+
+                // Test 2: Login
+                const loginRes = await fetch('http://localhost:3000/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ user_name: 'sManager', password: 'admin123' })
+                });
+
+                if (loginRes.ok) {
+                    const loginData = await loginRes.json();
+                    addResult('Login Test', 'success', `Login successful. Token: ${loginData.token.substring(0, 20)}...`);
+                    
+                    // Test 3: Students API
+                    const studentsRes = await fetch('http://localhost:3000/api/students', {
+                        headers: { 'Authorization': `Bearer ${loginData.token}` }
+                    });
+                    
+                    if (studentsRes.ok) {
+                        const students = await studentsRes.json();
+                        addResult('Students API', 'success', `Students API working. Found ${students.length} students`);
+                    } else {
+                        addResult('Students API', 'error', `Students API failed: ${studentsRes.status}`);
+                    }
+                } else {
+                    addResult('Login Test', 'error', `Login failed: ${loginRes.status}`);
+                }
+
+                return true;
+            } catch (error) {
+                addResult('Backend Connection', 'error', `Cannot connect to backend: ${error.message}`);
+                return false;
+            }
+        }
+
+        async function testFrontend() {
+            addResult('Frontend Tests', 'warning', 'Checking frontend configuration...');
+            
+            // Test 1: Current location
+            addResult('Current URL', 'success', `URL: ${window.location.href}`);
+            
+            // Test 2: Check if this is the right frontend
+            if (window.location.port === '5173') {
+                addResult('Frontend Port', 'success', 'Running on correct port 5173');
+            } else {
+                addResult('Frontend Port', 'warning', `Running on port ${window.location.port}, expected 5173`);
+            }
+
+            // Test 3: Check for React
+            if (window.React) {
+                addResult('React', 'success', 'React is loaded');
+            } else {
+                addResult('React', 'warning', 'React not detected in global scope');
+            }
+
+            // Test 4: Check for common errors
+            const errors = [];
+            window.addEventListener('error', (e) => {
+                errors.push(`${e.filename}:${e.lineno} - ${e.message}`);
+            });
+
+            setTimeout(() => {
+                if (errors.length > 0) {
+                    addResult('JavaScript Errors', 'error', errors.join('\n'));
+                } else {
+                    addResult('JavaScript Errors', 'success', 'No JavaScript errors detected');
+                }
+            }, 1000);
+
+            // Test 5: Check if root element exists
+            const root = document.getElementById('root');
+            if (root) {
+                addResult('Root Element', 'success', `Root element found. Content: "${root.innerHTML.substring(0, 100)}..."`);
+            } else {
+                addResult('Root Element', 'error', 'Root element not found - React cannot mount');
+            }
+        }
+
+        async function runAllTests() {
+            results.innerHTML = '';
+            addResult('Diagnostic Started', 'warning', 'Running comprehensive tests...');
+            
+            await testFrontend();
+            await testBackend();
+            
+            addResult('Diagnostic Complete', 'success', 'All tests completed. Review results above.');
+        }
+
+        // Auto-run tests when page loads
+        window.onload = () => {
+            setTimeout(runAllTests, 500);
+        };
+    </script>
+</body>
+</html>
