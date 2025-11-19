@@ -1,6 +1,7 @@
 import { ReactNode } from 'react';
 import { NavLink } from 'react-router-dom';
 import { FaThLarge, FaUser, FaBuilding, FaChartBar } from 'react-icons/fa';
+import { FaGavel } from 'react-icons/fa';
 
 type NavItemProps = {
   path: string;
@@ -13,6 +14,7 @@ const navItems: NavItemProps[] = [
   { path: '/students', icon: <FaUser />, label: 'Students' },
   { path: '/rooms', icon: <FaBuilding />, label: 'Rooms' },
   { path: '/statistics', icon: <FaChartBar />, label: 'Statistics' },
+  { path: '/disciplines', icon: <FaGavel />, label: 'Discipline' },
 ];
 
 const Sidebar = () => (

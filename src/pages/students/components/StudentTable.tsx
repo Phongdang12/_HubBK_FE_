@@ -71,7 +71,7 @@ const StudentTable: FC<StudentTableProps> = ({
   return (
     <div>
       <Table>
-        <TableHeader className='sticky top-0 bg-white'>
+        <TableHeader className="bg-gray-100">
           <TableRow>
             <TableHead>SSN</TableHead>
             <TableHead>Student ID</TableHead>
