@@ -1,5 +1,5 @@
 // src/pages/discipline/components/SharedDisciplineForm.tsx
-import { FC, useEffect, useState } from "react";
+import { FC, useEffect, useMemo, useState } from "react";
 import { Discipline, createDiscipline, updateDiscipline } from "@/services/disciplineService";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,16 +7,29 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { toast } from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
+import {
+  ACTION_ID_ERROR_MESSAGE,
+  ACTION_TYPE_ERROR_MESSAGE,
+  DECISION_DATE_ERROR_MESSAGE,
+  DISCIPLINE_FORMS,
+  EFFECTIVE_FROM_ERROR_MESSAGE,
+  EFFECTIVE_TO_ERROR_MESSAGE,
+  GENERAL_FORM_ERROR_MESSAGE,
+  REASON_ERROR_MESSAGE,
+  SEVERITY_ERROR_MESSAGE,
+  SEVERITY_OPTIONS,
+  STATUS_ERROR_MESSAGE,
+  STATUS_OPTIONS,
+  STUDENT_CODE_ERROR_MESSAGE,
+} from "@/pages/discipline/constants";
 
 interface Props {
   initialData?: Discipline;
   mode: "add" | "edit" | "view";
 }
 
-
 const SharedDisciplineForm: FC<Props> = ({ initialData, mode }) => {
   const navigate = useNavigate();
-// ... (form state, useEffect, handleChange, validateForm) ...
   const [form, setForm] = useState<Discipline>({
     action_id: "",
     sssn: "",
@@ -28,56 +41,176 @@ const SharedDisciplineForm: FC<Props> = ({ initialData, mode }) => {
     effective_from: "",
     effective_to: ""
   });
+  const [formErrors, setFormErrors] = useState<Partial<Record<keyof Discipline | "form", string>>>(
+    {}
+  );
+  const [formErrorMessage, setFormErrorMessage] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  const today = useMemo(() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }, []);
 
   useEffect(() => {
     if (initialData) {
-      setForm(initialData);
+      setForm({
+        action_id: initialData.action_id?.toUpperCase() || "",
+        sssn: initialData.sssn || "",
+        action_type: initialData.action_type || "",
+        reason: initialData.reason || "",
+        severity_level: initialData.severity_level?.toLowerCase() || "",
+        status: initialData.status?.toLowerCase() || "",
+        decision_date: (initialData.decision_date || "").slice(0, 10),
+        effective_from: (initialData.effective_from || "").slice(0, 10),
+        effective_to: (initialData.effective_to || "")?.slice(0, 10) || "",
+      });
     }
   }, [initialData]);
+
+  const clearFieldError = (name: keyof Discipline) => {
+    setFormErrors((prev) => {
+      if (!prev[name]) return prev;
+      const updated = { ...prev };
+      delete updated[name];
+      if (Object.keys(updated).length === 0) {
+        setFormErrorMessage(null);
+      }
+      return updated;
+    });
+  };
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) => {
-    setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+    const { name, value } = e.target;
+    setForm((prev) => ({ ...prev, [name]: value }));
+    clearFieldError(name as keyof Discipline);
   };
 
+  const mapBackendErrors = (errors: Array<{ field: string; message: string }> = []) => {
+    const mapped: Partial<Record<keyof Discipline | "form", string>> = {};
+    errors.forEach(({ field, message }) => {
+      mapped[field as keyof Discipline] = message;
+    });
+    setFormErrors(mapped);
+    if (Object.keys(mapped).length > 0) {
+      setFormErrorMessage(GENERAL_FORM_ERROR_MESSAGE);
+    }
+  };
+
+  const isValidDateString = (value: string) => !!value && !Number.isNaN(Date.parse(value));
+
   const validateForm = () => {
-    if (!form.sssn) return toast.error("SSSN không được để trống");
-    if (!form.action_type) return toast.error("Hình thức không được để trống");
-    if (!form.reason) return toast.error("Lý do không được bỏ trống");
-    if (!form.severity_level) return toast.error("Mức độ không được bỏ trống");
-    if (!form.status) return toast.error("Trạng thái không được bỏ trống");
-    if (!form.decision_date) return toast.error("Ngày quyết định không hợp lệ");
-    if (!form.effective_from) return toast.error("Ngày bắt đầu hiệu lực không hợp lệ");
+    const errors: Partial<Record<keyof Discipline | "form", string>> = {};
+
+    const actionId = form.action_id?.trim().toUpperCase();
+    if (!actionId || !/^DA\d{3,}$/.test(actionId)) {
+      errors.action_id = ACTION_ID_ERROR_MESSAGE;
+    }
+
+    if (!/^\d{8}$/.test(form.sssn.trim())) {
+      errors.sssn = STUDENT_CODE_ERROR_MESSAGE;
+    }
+
+    if (!DISCIPLINE_FORMS.includes(form.action_type as (typeof DISCIPLINE_FORMS)[number])) {
+      errors.action_type = ACTION_TYPE_ERROR_MESSAGE;
+    }
+
+    if (!SEVERITY_OPTIONS.some((opt) => opt.value === form.severity_level.toLowerCase())) {
+      errors.severity_level = SEVERITY_ERROR_MESSAGE;
+    }
+
+    if (!STATUS_OPTIONS.some((opt) => opt.value === form.status.toLowerCase())) {
+      errors.status = STATUS_ERROR_MESSAGE;
+    }
+
+    const reason = form.reason.trim();
+    if (reason.length < 10 || reason.length > 500) {
+      errors.reason = REASON_ERROR_MESSAGE;
+    }
+
+    if (!isValidDateString(form.decision_date) || new Date(form.decision_date) < today) {
+      errors.decision_date = DECISION_DATE_ERROR_MESSAGE;
+    }
+
+    const fromValid = isValidDateString(form.effective_from);
+    const toValid = isValidDateString(form.effective_to || "");
+    if (!fromValid) {
+      errors.effective_from = EFFECTIVE_FROM_ERROR_MESSAGE;
+    }
+    if (!toValid) {
+      errors.effective_to = EFFECTIVE_TO_ERROR_MESSAGE;
+    }
+
+    if (fromValid && toValid) {
+      const from = new Date(form.effective_from);
+      const to = new Date(form.effective_to as string);
+      if (from >= to) {
+        errors.effective_from = EFFECTIVE_FROM_ERROR_MESSAGE;
+        errors.effective_to = EFFECTIVE_TO_ERROR_MESSAGE;
+      }
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
+      setFormErrorMessage(GENERAL_FORM_ERROR_MESSAGE);
+      return false;
+    }
+
+    setFormErrors({});
+    setFormErrorMessage(null);
     return true;
   };
 
   const handleSubmit = async () => {
     if (!validateForm()) return;
-
+    setSubmitting(true);
     try {
+      const payload: Discipline = {
+        ...form,
+        action_id: form.action_id.toUpperCase(),
+        severity_level: form.severity_level.toLowerCase(),
+        status: form.status.toLowerCase(),
+      };
       if (mode === "edit") {
-        await updateDiscipline(form.action_id, form);
+        await updateDiscipline(payload.action_id, payload);
         toast.success("Discipline updated successfully!");
       } else {
-        await createDiscipline(form);
+        await createDiscipline(payload);
         toast.success("Discipline created successfully!");
       }
-
-      // Vẫn điều hướng về /disciplines. 
-      // Lỗi là ở trang Disciplines.tsx không tự reset về trang 1 và clear filter.
-      navigate("/disciplines"); 
+      setFormErrorMessage(null);
+      navigate("/disciplines");
     } catch (error: any) {
-      toast.error(`Failed to save discipline: ${error?.response?.data?.message || ''}`);
+      const serverErrors = error?.response?.data?.fieldErrors;
+      if (Array.isArray(serverErrors) && serverErrors.length) {
+        mapBackendErrors(serverErrors);
+      }
+      const serverMessage = error?.response?.data?.error || GENERAL_FORM_ERROR_MESSAGE;
+      setFormErrorMessage(serverMessage);
+      toast.error(serverMessage);
+    } finally {
+      setSubmitting(false);
     }
   };
 
+  const renderError = (field: keyof Discipline) =>
+    formErrors[field] ? (
+      <p className="mt-1 text-sm text-red-600">{formErrors[field]}</p>
+    ) : null;
+
   return (
     <div className="w-full max-w-3xl mx-auto bg-white p-6 rounded-lg shadow-md space-y-6">
-      {/* ... (Phần UI không đổi) ... */}
       <h2 className="text-2xl font-bold">
         {mode === "edit" ? "Edit Discipline" : "Add New Discipline"}
       </h2>
+      {formErrorMessage && (
+        <div className="rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+          {formErrorMessage}
+        </div>
+      )}
 
       {/* Grid 2 cột */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -89,15 +222,30 @@ const SharedDisciplineForm: FC<Props> = ({ initialData, mode }) => {
             onChange={handleChange}
             disabled={mode === "edit"}
           />
+          {renderError("action_id")}
         </div>
         <div>
           <Label>SSSN</Label>
           <Input name="sssn" value={form.sssn} onChange={handleChange} />
+          {renderError("sssn")}
         </div>
 
         <div>
           <Label>Form</Label>
-          <Input name="action_type" value={form.action_type} onChange={handleChange} />
+          <select
+            name="action_type"
+            value={form.action_type}
+            onChange={handleChange}
+            className="border px-3 py-2 rounded w-full"
+          >
+            <option value="">Select form</option>
+            {DISCIPLINE_FORMS.map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
+          {renderError("action_type")}
         </div>
 
         <div>
@@ -109,11 +257,13 @@ const SharedDisciplineForm: FC<Props> = ({ initialData, mode }) => {
             className="border px-3 py-2 rounded w-full"
           >
             <option value="">Select severity level</option>
-            <option value="low">Low</option>
-            <option value="medium">Medium</option>
-            <option value="high">High</option>
-            <option value="expulsion">Expulsion</option>
+            {SEVERITY_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
           </select>
+          {renderError("severity_level")}
         </div>
 
         <div>
@@ -125,13 +275,14 @@ const SharedDisciplineForm: FC<Props> = ({ initialData, mode }) => {
             className="border px-3 py-2 rounded w-full"
           >
             <option value="">Select status</option>
-            <option value="pending">Pending</option>
-            <option value="active">Active</option>
-            <option value="completed">Completed</option>
-            <option value="cancelled">Cancelled</option>
+            {STATUS_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
           </select>
+          {renderError("status")}
         </div>
-
       </div>
 
       {/* Reason */}
@@ -143,6 +294,7 @@ const SharedDisciplineForm: FC<Props> = ({ initialData, mode }) => {
           onChange={handleChange}
           className="min-h-[100px]"
         />
+        {renderError("reason")}
       </div>
 
       {/* 3 ngày */}
@@ -150,16 +302,19 @@ const SharedDisciplineForm: FC<Props> = ({ initialData, mode }) => {
         <div>
           <Label>Decision Date</Label>
           <Input type="date" name="decision_date" value={form.decision_date} onChange={handleChange} />
+          {renderError("decision_date")}
         </div>
 
         <div>
           <Label>Effective From</Label>
           <Input type="date" name="effective_from" value={form.effective_from} onChange={handleChange} />
+          {renderError("effective_from")}
         </div>
 
         <div>
           <Label>Effective To</Label>
           <Input type="date" name="effective_to" value={form.effective_to || ""} onChange={handleChange} />
+          {renderError("effective_to")}
         </div>
       </div>
 
@@ -172,8 +327,13 @@ const SharedDisciplineForm: FC<Props> = ({ initialData, mode }) => {
           </Button>
         )}
         {/* Nút Update/Add (ở bên phải) */}
-        <Button style={{ backgroundColor: '#032B91', color: 'white' }} className="w-40" onClick={handleSubmit}>
-          {mode === "edit" ? "Update" : "Add"}
+        <Button
+          style={{ backgroundColor: '#032B91', color: 'white' }}
+          className="w-40"
+          onClick={handleSubmit}
+          disabled={submitting}
+        >
+          {submitting ? "Saving..." : mode === "edit" ? "Update" : "Add"}
         </Button>
         
       </div>

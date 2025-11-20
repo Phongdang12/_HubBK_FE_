@@ -10,6 +10,7 @@ interface EditListFieldProps {
   onAdd: () => void;
   onRemove: (index: number) => void;
   maxItems?: number;
+  error?: string;
 }
 
 const EditForm: FC<EditListFieldProps> = ({
@@ -20,6 +21,7 @@ const EditForm: FC<EditListFieldProps> = ({
   onAdd,
   onRemove,
   maxItems = 3,
+  error,
 }) => {
   const renderValues = values.length > 0 ? values : [''];
 
@@ -59,6 +61,7 @@ const EditForm: FC<EditListFieldProps> = ({
           + Add {label}
         </Button>
       )}
+      {error && <p className='mt-1 text-xs text-red-600'>{error}</p>}
     </div>
   );
 };

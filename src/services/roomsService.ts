@@ -6,8 +6,8 @@ export interface Room {
   room_id: string;
   max_num_of_students: number;
   current_num_of_students: number;
-  occupancy_rate: string;
-  rental_price: string;
+  occupancy_rate: number;
+  rental_price: number;
   room_status: 'Available' | 'Occupied' | 'Under Maintenance';
 }
 export interface Student {
@@ -120,4 +120,29 @@ export const getUnderoccupiedRoomsByBuilding = async (
     },
   );
   return res.data;
+};
+
+export const addStudentToRoom = async (
+  buildingId: string,
+  roomId: string,
+  sssn: string
+): Promise<Room> => {
+  const response = await axios.post<Room>(
+    `/api/rooms/${buildingId}/${roomId}/students`,
+    { sssn },
+    { headers: { ...getAuthHeaders() } }
+  );
+  return response.data;
+};
+
+export const removeStudentFromRoom = async (
+  buildingId: string,
+  roomId: string,
+  sssn: string
+): Promise<Room> => {
+  const response = await axios.delete<Room>(
+    `/api/rooms/${buildingId}/${roomId}/students/${sssn}`,
+    { headers: { ...getAuthHeaders() } }
+  );
+  return response.data;
 };

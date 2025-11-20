@@ -10,7 +10,8 @@ interface BooleanSelectFieldProps {
   value: boolean;
   options: Option[];
   isEditing: boolean;
-  onChange: (value: boolean) => void; // Hàm onChange nhận giá trị boolean
+  onChange: (value: boolean) => void;
+  error?: string;
 }
 
 const BooleanSelectField: FC<BooleanSelectFieldProps> = ({
@@ -19,6 +20,7 @@ const BooleanSelectField: FC<BooleanSelectFieldProps> = ({
   options,
   isEditing,
   onChange,
+  error,
 }) => {
   return (
     <div className='flex flex-col gap-1'>
@@ -45,6 +47,7 @@ const BooleanSelectField: FC<BooleanSelectFieldProps> = ({
           {value ? 'Yes' : 'No'}
         </div>
       )}
+      {error && <p className='text-xs text-red-600'>{error}</p>}
     </div>
   );
 };

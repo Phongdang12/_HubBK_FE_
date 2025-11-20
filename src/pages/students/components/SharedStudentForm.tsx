@@ -22,6 +22,15 @@ interface Props {
   onSubmit?: (data: Student) => Promise<void>; // trả về Promise để EditStudentPage có thể await
 }
 
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const PHONE_REGEX = /^(\+?\d{1,3})?[\s-]?\d{9,}$/;
+const MIN_BIRTHDAY = new Date('2000-01-01');
+const GUARDIAN_MIN_BIRTHDAY = new Date('1950-01-01');
+const GUARDIAN_MAX_BIRTHDAY = new Date('2005-12-31');
+const RELATIONSHIP_OPTIONS = ['Father', 'Mother', 'Other'];
+const GENERAL_FORM_ERROR_MESSAGE =
+  'Vui lòng kiểm tra lại thông tin sinh viên và sửa các lỗi được chỉ ra.';
+
 const SharedStudentForm: React.FC<Props> = ({ student, mode, onSubmit }) => {
   const navigate = useNavigate();
   const isView = mode === 'view';
@@ -35,10 +44,23 @@ const SharedStudentForm: React.FC<Props> = ({ student, mode, onSubmit }) => {
     emails: student.emails || '',
     phone_numbers: student.phone_numbers || '',
   });
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [formError, setFormError] = useState<string | null>(null);
 
   // ================= Helpers =================
+  const clearFieldError = (field: string) => {
+    setFieldErrors((prev) => {
+      if (!prev[field]) return prev;
+      const updated = { ...prev };
+      delete updated[field];
+      return updated;
+    });
+  };
+
   const handleChange = (field: keyof Student | string, value: any) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
+    clearFieldError(field as string);
+    setFormError(null);
   };
 
   const parseAddressField = (value: string): Address[] =>
@@ -57,6 +79,22 @@ const SharedStudentForm: React.FC<Props> = ({ student, mode, onSubmit }) => {
 
   const stringifyListField = (list: string[]) =>
     list.map((v) => v.trim()).join(';');
+
+  const hasValidAddressList = (value: string) => {
+    const addresses = parseAddressField(value || '');
+    return (
+      addresses.length > 0 &&
+      addresses.every(
+        (addr) => addr.commune.trim().length && addr.province.trim().length,
+      )
+    );
+  };
+
+  const isValidGuardianBirthday = (value: string) => {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return false;
+    return date >= GUARDIAN_MIN_BIRTHDAY && date <= GUARDIAN_MAX_BIRTHDAY;
+  };
 
   // Address helpers
   const handleAddressChange = (
@@ -104,8 +142,127 @@ const SharedStudentForm: React.FC<Props> = ({ student, mode, onSubmit }) => {
     handleChange(field, stringifyListField(list.filter((_, idx) => idx !== i)));
   };
 
+  const validateForm = () => {
+    const errors: Record<string, string> = {};
+    const fullname = (formData as any).fullname || '';
+    if (!fullname.trim()) {
+      errors.fullname = 'Họ và tên không được để trống.';
+    }
+
+    if (!formData.student_id || !/^[A-Za-z0-9]{7}$/.test(formData.student_id)) {
+      errors.student_id = 'Mã sinh viên không hợp lệ hoặc đã tồn tại.';
+    }
+
+    if (formData.birthday) {
+      const birthdayDate = new Date(formData.birthday);
+      const today = new Date();
+      if (
+        Number.isNaN(birthdayDate.getTime()) ||
+        birthdayDate < MIN_BIRTHDAY ||
+        birthdayDate > today
+      ) {
+        errors.birthday = 'Ngày sinh không hợp lệ.';
+      }
+    } else {
+      errors.birthday = 'Ngày sinh không hợp lệ.';
+    }
+
+    if (!formData.study_status) {
+      errors.study_status =
+        'Trường lựa chọn không hợp lệ. Vui lòng kiểm tra lại các trường đã chọn.';
+    }
+
+    if (!formData.building_id) {
+      errors.building_id =
+        'Trường lựa chọn không hợp lệ. Vui lòng kiểm tra lại các trường đã chọn.';
+    }
+
+    if (!formData.room_id) {
+      errors.room_id =
+        'Trường lựa chọn không hợp lệ. Vui lòng kiểm tra lại các trường đã chọn.';
+    }
+
+    if (!hasValidAddressList(formData.addresses || '')) {
+      errors.addresses = 'Địa chỉ không hợp lệ.';
+    }
+
+    const emailList = parseListField(formData.emails || '').filter(Boolean);
+    if (emailList.some((email) => !EMAIL_REGEX.test(email))) {
+      errors.emails = 'Email không hợp lệ.';
+    }
+
+    const phoneList = parseListField(formData.phone_numbers || '').filter(Boolean);
+    if (phoneList.some((phone) => !PHONE_REGEX.test(phone))) {
+      errors.phone_numbers = 'Số điện thoại không hợp lệ.';
+    }
+
+    const guardianCccd = ((formData as any).guardian_cccd || '').trim();
+    if (!/^\d{12}$/.test(guardianCccd)) {
+      errors.guardian_cccd = 'CCCD người thân phải gồm 12 chữ số.';
+    }
+
+    const guardianName = ((formData as any).guardian_name || '').trim();
+    if (!guardianName) {
+      errors.guardian_name = 'Tên người thân không hợp lệ.';
+    }
+
+    const relationship = (formData as any).guardian_relationship || '';
+    if (!RELATIONSHIP_OPTIONS.includes(relationship)) {
+      errors.guardian_relationship = 'Quan hệ với người thân không hợp lệ.';
+    }
+
+    const guardianBirthday = (formData as any).guardian_birthday;
+    if (!guardianBirthday || !isValidGuardianBirthday(guardianBirthday)) {
+      errors.guardian_birthday = 'Ngày sinh người thân không hợp lệ.';
+    }
+
+    const guardianPhoneList = parseListField(
+      (formData as any).guardian_phone_numbers || '',
+    ).filter(Boolean);
+    if (
+      guardianPhoneList.length === 0 ||
+      guardianPhoneList.some((phone) => !PHONE_REGEX.test(phone))
+    ) {
+      errors.guardian_phone_numbers = 'Số điện thoại người thân không hợp lệ.';
+    }
+
+    const guardianAddresses = (formData as any).guardian_addresses || '';
+    if (!hasValidAddressList(guardianAddresses)) {
+      errors.guardian_addresses = 'Địa chỉ người thân không hợp lệ.';
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      setFormError(GENERAL_FORM_ERROR_MESSAGE);
+      return false;
+    }
+
+    setFieldErrors({});
+    setFormError(null);
+    return true;
+  };
+
+  const mapBackendErrors = (errors?: Array<{ field: string; message: string }>) => {
+    if (!Array.isArray(errors)) return;
+    const mapped: Record<string, string> = {};
+    errors.forEach(({ field, message }) => {
+      const targetField =
+        field === 'first_name' || field === 'last_name' ? 'fullname' : field;
+      mapped[targetField] = message;
+    });
+    setFieldErrors(mapped);
+    if (Object.keys(mapped).length > 0) {
+      setFormError(GENERAL_FORM_ERROR_MESSAGE);
+    }
+  };
+
   // ================= Save =================
   const handleSave = async () => {
+    if (!validateForm()) {
+      toast.error('Vui lòng kiểm tra lại các trường bị lỗi.');
+      return;
+    }
+
     try {
       // chuyển fullname -> first_name, last_name
       const fullname = (formData as any).fullname || '';
@@ -132,20 +289,23 @@ const SharedStudentForm: React.FC<Props> = ({ student, mode, onSubmit }) => {
       console.log('🟡 SharedStudentForm -> payload:', payload);
 
       if (onSubmit) {
-  await onSubmit(payload);
-  // ✅ Fallback đảm bảo điều hướng (nếu parent không navigate)
-  navigate(`/students/view/${payload.ssn}`);
-} else {
-  await updateStudent(payload.ssn, payload);
-  toast.success('Student updated successfully!');
-  navigate(`/students/view/${payload.ssn}`);
-}
+        await onSubmit(payload);
+        navigate(`/students/view/${payload.ssn}`);
+      } else {
+        await updateStudent(payload.ssn, payload);
+        toast.success('Student updated successfully!');
+        navigate(`/students/view/${payload.ssn}`);
+      }
+      setFormError(null);
     } catch (error: any) {
       console.error('❌ Update failed (SharedStudentForm):', error);
+      mapBackendErrors(error?.response?.data?.fieldErrors);
       const msg =
+        error?.response?.data?.error ||
         error?.response?.data?.message ||
         error?.message ||
         'Failed to update student. Please try again.';
+      setFormError(msg);
       toast.error(msg);
     }
   };
@@ -156,6 +316,11 @@ const SharedStudentForm: React.FC<Props> = ({ student, mode, onSubmit }) => {
       <div className='col-span-full mb-4 text-2xl font-semibold'>
         {isEdit ? 'Edit Student Information' : 'Student Information'}
       </div>
+      {formError && (
+        <div className='col-span-full rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700'>
+          {formError}
+        </div>
+      )}
 
       {/* BASIC */}
       <EditField
@@ -166,9 +331,10 @@ const SharedStudentForm: React.FC<Props> = ({ student, mode, onSubmit }) => {
       />
       <EditField
         label='Student ID (*)'
-        value={formData.student_id}
+        value={formData.student_id || ''}
         isEditing={isEdit}
         onChange={(v) => handleChange('student_id', v)}
+        error={fieldErrors.student_id}
       />
       <EditField
         label='CCCD (*)'
@@ -181,6 +347,7 @@ const SharedStudentForm: React.FC<Props> = ({ student, mode, onSubmit }) => {
         value={(formData as any).fullname || ''}
         isEditing={isEdit}
         onChange={(v) => handleChange('fullname', v)}
+        error={fieldErrors.fullname}
       />
 
       <EditField
@@ -194,6 +361,7 @@ const SharedStudentForm: React.FC<Props> = ({ student, mode, onSubmit }) => {
         type='date'
         isEditing={isEdit}
         onChange={(v) => handleChange('birthday', v)}
+        error={fieldErrors.birthday}
         icon={<img src={CalendarIcon} className='h-5 w-5' />}
       />
 
@@ -252,6 +420,7 @@ const SharedStudentForm: React.FC<Props> = ({ student, mode, onSubmit }) => {
         ]}
         isEditing={isEdit}
         onChange={(v) => handleChange('study_status', v)}
+        error={fieldErrors.study_status}
       />
       <SelectField
         label='Building'
@@ -264,6 +433,7 @@ const SharedStudentForm: React.FC<Props> = ({ student, mode, onSubmit }) => {
         ]}
         isEditing={isEdit}
         onChange={(v) => handleChange('building_id', v)}
+        error={fieldErrors.building_id}
       />
       <SelectField
         label='Room'
@@ -276,6 +446,7 @@ const SharedStudentForm: React.FC<Props> = ({ student, mode, onSubmit }) => {
         ]}
         isEditing={isEdit}
         onChange={(v) => handleChange('room_id', v)}
+        error={fieldErrors.room_id}
       />
 
       {/* ADDRESSES */}
@@ -286,6 +457,7 @@ const SharedStudentForm: React.FC<Props> = ({ student, mode, onSubmit }) => {
         onChange={(i, f, v) => handleAddressChange(i, f, v, 'addresses')}
         onAdd={() => handleAddAddress('addresses')}
         onRemove={(i) => handleRemoveAddress('addresses', i)}
+        error={fieldErrors.addresses}
       />
 
       {/* EMAIL / PHONE */}
@@ -296,6 +468,7 @@ const SharedStudentForm: React.FC<Props> = ({ student, mode, onSubmit }) => {
         onChange={(i, v) => handleListChange('emails', i, v)}
         onAdd={() => handleAddToList('emails')}
         onRemove={(i) => handleRemoveFromList('emails', i)}
+        error={fieldErrors.emails}
       />
       <EditForm
         label='Phone Numbers'
@@ -304,6 +477,7 @@ const SharedStudentForm: React.FC<Props> = ({ student, mode, onSubmit }) => {
         onChange={(i, v) => handleListChange('phone_numbers', i, v)}
         onAdd={() => handleAddToList('phone_numbers')}
         onRemove={(i) => handleRemoveFromList('phone_numbers', i)}
+        error={fieldErrors.phone_numbers}
       />
 
       {/* GUARDIAN */}
@@ -314,12 +488,14 @@ const SharedStudentForm: React.FC<Props> = ({ student, mode, onSubmit }) => {
         value={(formData as any).guardian_cccd || ''}
         isEditing={isEdit}
         onChange={(v) => handleChange('guardian_cccd' as any, v)}
+        error={fieldErrors.guardian_cccd}
       />
       <EditField
         label='Full name (*)'
         value={(formData as any).guardian_name || ''}
         isEditing={isEdit}
         onChange={(v) => handleChange('guardian_name' as any, v)}
+        error={fieldErrors.guardian_name}
       />
       <SelectField
         label='Relationship (*)'
@@ -331,6 +507,7 @@ const SharedStudentForm: React.FC<Props> = ({ student, mode, onSubmit }) => {
         ]}
         isEditing={isEdit}
         onChange={(v) => handleChange('guardian_relationship' as any, v)}
+        error={fieldErrors.guardian_relationship}
       />
       <EditField
         label='Occupation'
@@ -344,6 +521,7 @@ const SharedStudentForm: React.FC<Props> = ({ student, mode, onSubmit }) => {
         type='date'
         isEditing={isEdit}
         onChange={(v) => handleChange('guardian_birthday' as any, v)}
+        error={fieldErrors.guardian_birthday}
         icon={<img src={CalendarIcon} className='h-5 w-5' />}
       />
       <EditForm
@@ -353,6 +531,7 @@ const SharedStudentForm: React.FC<Props> = ({ student, mode, onSubmit }) => {
         onChange={(i, v) => handleListChange('guardian_phone_numbers' as any, i, v)}
         onAdd={() => handleAddToList('guardian_phone_numbers' as any)}
         onRemove={(i) => handleRemoveFromList('guardian_phone_numbers' as any, i)}
+        error={fieldErrors.guardian_phone_numbers}
       />
       <InputAddress
         label='Addresses'
@@ -361,6 +540,7 @@ const SharedStudentForm: React.FC<Props> = ({ student, mode, onSubmit }) => {
         onChange={(i, f, v) => handleAddressChange(i, f, v, 'guardian_addresses')}
         onAdd={() => handleAddAddress('guardian_addresses')}
         onRemove={(i) => handleRemoveAddress('guardian_addresses', i)}
+        error={fieldErrors.guardian_addresses}
       />
 
       {/* FOOTER */}

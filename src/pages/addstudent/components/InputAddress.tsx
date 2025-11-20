@@ -15,6 +15,7 @@ interface EditAddressFieldProps {
   onAdd: () => void;
   onRemove: (index: number) => void;
   maxItems?: number;
+  error?: string;
 }
 
 const InputAddress: FC<EditAddressFieldProps> = ({
@@ -25,6 +26,7 @@ const InputAddress: FC<EditAddressFieldProps> = ({
   onAdd,
   onRemove,
   maxItems = 3,
+  error,
 }) => {
   const renderValues =
     values.length > 0 ? values : [{ commune: '', province: '' }];
@@ -72,6 +74,7 @@ const InputAddress: FC<EditAddressFieldProps> = ({
           + Add Address
         </Button>
       )}
+      {error && <p className='mt-1 text-xs text-red-600'>{error}</p>}
     </div>
   );
 };

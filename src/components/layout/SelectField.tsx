@@ -11,6 +11,7 @@ interface SelectFieldProps {
   options: Option[];
   isEditing: boolean;
   onChange: (value: string) => void;
+  error?: string;
 }
 
 const SelectField: FC<SelectFieldProps> = ({
@@ -19,6 +20,7 @@ const SelectField: FC<SelectFieldProps> = ({
   options,
   isEditing,
   onChange,
+  error,
 }) => {
   return (
     <div className='flex flex-col gap-1'>
@@ -47,6 +49,7 @@ const SelectField: FC<SelectFieldProps> = ({
             : '-'}
         </div>
       )}
+      {error && <p className="text-xs text-red-600">{error}</p>}
     </div>
   );
 };

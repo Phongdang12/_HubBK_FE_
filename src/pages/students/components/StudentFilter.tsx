@@ -1,58 +1,20 @@
 import { FC } from 'react';
 import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 
 interface Props {
-  searchQuery: string;
-  setSearchQuery: (val: string) => void;
-  selectedStatus: string;
-  setSelectedStatus: (val: string) => void;
-  sortOrder: 'none' | 'asc' | 'desc';
-  setSortOrder: (val: 'none' | 'asc' | 'desc') => void;
-  selectedBuilding: string;
-  setSelectedBuilding: (val: string) => void;
+  ssnQuery: string;
+  setSsnQuery: (val: string) => void;
 }
 
-const StudentFilter: FC<Props> = ({
-  searchQuery,
-  setSearchQuery,
-  selectedStatus,
-  setSelectedStatus,
-}) => {
+const StudentFilter: FC<Props> = ({ ssnQuery, setSsnQuery }) => {
   return (
-    <div className='mb-4 flex items-center justify-between'>
-      <div className='flex items-center gap-2'>
-        <Input
-          placeholder='Search student by ssn, name...'
-          className='w-64'
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && e.preventDefault()}
-        />
-        <Button variant='secondary'>Search</Button>
-      </div>
-      <div className='flex items-center gap-2'>
-        <Select
-          value={selectedStatus}
-          onValueChange={(value) => setSelectedStatus(value)}
-        >
-          <SelectTrigger className='w-[150px] border'>
-            <SelectValue placeholder='All students' />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value='all'>All students</SelectItem>
-            <SelectItem value='Active'>Active</SelectItem>
-            <SelectItem value='Non_Active'>Non active</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
+    <div className='mb-4 flex items-center gap-3'>
+      <Input
+        placeholder='Search by SSN'
+        className='w-64'
+        value={ssnQuery}
+        onChange={(e) => setSsnQuery(e.target.value)}
+      />
     </div>
   );
 };

@@ -29,8 +29,21 @@ export interface Student {
   guardian_addresses?: string;
 }
 const API_URL = "http://localhost:3000/api/students";
-export const getPaginatedStudents = async (page: number, limit: number) => {
-  const response = await axios.get(`${API_URL}/paginated?page=${page}&limit=${limit}`);
+
+export interface PaginatedStudentsResponse {
+  data: Student[];
+  pagination: {
+    totalPages: number;
+  };
+}
+
+export const getPaginatedStudents = async (
+  page: number,
+  limit: number,
+): Promise<PaginatedStudentsResponse> => {
+  const response = await axios.get<PaginatedStudentsResponse>(
+    `${API_URL}/paginated?page=${page}&limit=${limit}`,
+  );
   return response.data;
 };
 const getAuthHeaders = () => {

@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import {Student ,getPaginatedStudents } from '@/services/studentService';
-import StudentFilter from './components/StudentFilter';
+import { Student, getPaginatedStudents } from '@/services/studentService';
 import StudentTable from './components/StudentTable';
 import Footer from '@/components/layout/Footer';
 import Sidebar from '@/components/layout/Sidebar';
@@ -13,12 +12,9 @@ const StudentsPage = () => {
   const { isAuthenticated, user } = useAuth();
   const [students, setStudents] = useState<Student[]>([]);
   const [filteredStudents, setFilteredStudents] = useState<Student[]>([]);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedStatus, setSelectedStatus] = useState('all');
+  const [ssnFilter, setSsnFilter] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedBuilding, setSelectedBuilding] = useState('all');
-  const [allBuildings, setAllBuildings] = useState<string[]>([]);
 
  // ✅ Phân trang
   const [page, setPage] = useState(1);
@@ -26,24 +22,19 @@ const StudentsPage = () => {
   const [totalPages, setTotalPages] = useState(1);
 
   // ✅ Sort state cho faculty
-  const [sorts, setSorts] = useState<
-    { field: 'faculty'; order: 'asc' | 'desc' }[]
-  >([{ field: 'faculty', order: 'asc' }]);
+  type SortField = 'student_id' | 'faculty' | 'building_id';
+  const [sorts, setSorts] = useState<{ field: SortField; order: 'asc' | 'desc' }[]>([
+    { field: 'student_id', order: 'asc' },
+  ]);
 
   const navigate = useNavigate();
 
-  const toggleSort = (field: 'faculty') => {
+  const toggleSort = (field: SortField) => {
     setSorts((prev) => {
       const existing = prev.find((s) => s.field === field);
-      if (existing) {
-        return prev.map((s) =>
-          s.field === field
-            ? { ...s, order: s.order === 'asc' ? 'desc' : 'asc' }
-            : s,
-        );
-      } else {
-        return [...prev, { field, order: 'asc' }];
-      }
+      const nextOrder = existing?.order === 'asc' ? 'desc' : 'asc';
+      const remaining = prev.filter((s) => s.field !== field);
+      return [{ field, order: existing ? nextOrder : 'asc' }, ...remaining];
     });
   };
 
@@ -57,12 +48,6 @@ const StudentsPage = () => {
         ssn: s.sssn || s.ssn,
       }));
 
-      const buildings = Array.from(
-        new Set(
-          fixedData.map((s) => s.building_id).filter((b) => b && b.trim() !== ''),
-        ),
-      );
-      setAllBuildings(buildings);
       setStudents(fixedData);
       setFilteredStudents(fixedData);
       setTotalPages(res.pagination.totalPages);
@@ -84,30 +69,16 @@ const StudentsPage = () => {
     let filtered: Student[] = [];
 
     filtered = students.filter((student) => {
-      const matchesStatus =
-        selectedStatus === 'all' ||
-        (student?.study_status || '') === selectedStatus;
-
-      const fullName =
-        `${student?.first_name || ''} ${student?.last_name || ''}`.toLowerCase();
-
-      const matchesSearch =
+      const matchesSsn =
+        !ssnFilter ||
         (student?.ssn || '')
           .toLowerCase()
-          .includes(searchQuery.toLowerCase()) ||
-        fullName.includes(searchQuery.toLowerCase());
+          .includes(ssnFilter.toLowerCase());
 
-      return matchesStatus && matchesSearch;
-    });
-
-    // 🔹 Lọc theo building
-    if (selectedBuilding !== 'all') {
-      filtered = filtered.filter(
-        (s) =>
-          s.building_id &&
-          s.building_id.toLowerCase() === selectedBuilding.toLowerCase(),
+      return (
+        matchesSsn
       );
-    }
+    });
 
     // 🔹 Sort faculty
     if (sorts.length > 0) {
@@ -123,16 +94,10 @@ const StudentsPage = () => {
     }
 
     setFilteredStudents(filtered);
-  }, [students, searchQuery, selectedStatus, sorts, selectedBuilding]);
+  }, [students, ssnFilter, sorts]);
 
   const handleDelete = (id: string) => {
     setStudents((prev) => prev.filter((s) => s?.ssn !== id));
-  };
-
-  const handleUpdate = (updatedStudent: Student) => {
-    setStudents((prev) =>
-      prev.map((s) => (s?.ssn === updatedStudent?.ssn ? updatedStudent : s)),
-    );
   };
 
   // 🧭 Hàm điều hướng sang trang thêm sinh viên
@@ -150,26 +115,23 @@ const StudentsPage = () => {
             <div className='rounded-lg bg-white pb-6 shadow-md'>
               <div className='sticky top-0 z-20 rounded-lg bg-white px-6 pt-6 pb-2'>
                 {/* 🔹 Header có tiêu đề + nút Add Student */}
-                <div className='flex items-center justify-between mb-4'>
+                <div className='flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-4'>
                   <h2 className='text-xl font-semibold'>Students List</h2>
-                  <Button
-                    style={{ backgroundColor: '#032B91' }}
-                    onClick={handleAddStudent}
-                  >
-                    + Add Student
-                  </Button>
+                  <div className='flex flex-1 items-center gap-3 md:justify-end'>
+                    <input
+                      placeholder='Search by SSN'
+                      className='w-full rounded border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none md:w-64'
+                      value={ssnFilter}
+                      onChange={(e) => setSsnFilter(e.target.value)}
+                    />
+                    <Button
+                      style={{ backgroundColor: '#032B91' }}
+                      onClick={handleAddStudent}
+                    >
+                      + Add Student
+                    </Button>
+                  </div>
                 </div>
-
-                <StudentFilter
-                  searchQuery={searchQuery}
-                  setSearchQuery={setSearchQuery}
-                  selectedStatus={selectedStatus}
-                  setSelectedStatus={setSelectedStatus}
-                  sortOrder='none'
-                  setSortOrder={() => {}}
-                  selectedBuilding={selectedBuilding}
-                  setSelectedBuilding={setSelectedBuilding}
-                />
               </div>
 
               <div className='mx-6 rounded-md border'>
@@ -190,12 +152,8 @@ const StudentsPage = () => {
     <StudentTable
       students={filteredStudents}
       onDelete={handleDelete}
-      handleUpdate={handleUpdate}
       sorts={sorts}
-      onSort={(field, e) => toggleSort(field)}
-      selectedBuilding={selectedBuilding}
-      setSelectedBuilding={setSelectedBuilding}
-      allBuildings={allBuildings}
+      onSort={(field) => toggleSort(field)}
     />
 
     <div className='flex justify-center items-center mt-4 space-x-2'>
