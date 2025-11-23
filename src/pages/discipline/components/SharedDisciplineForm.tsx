@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import CustomDatePicker from "@/components/ui/date-picker";
 import { toast } from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
 import {
@@ -300,20 +301,47 @@ const SharedDisciplineForm: FC<Props> = ({ initialData, mode }) => {
       {/* 3 ngày */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div>
-          <Label>Decision Date</Label>
-          <Input type="date" name="decision_date" value={form.decision_date} onChange={handleChange} />
+          <CustomDatePicker
+            id="decision_date"
+            label="Decision Date"
+            value={form.decision_date}
+            onChange={(value) => {
+              setForm((prev) => ({ ...prev, decision_date: value }));
+              clearFieldError("decision_date");
+            }}
+            error={!!formErrors.decision_date}
+            placeholder="dd/MM/yyyy"
+          />
           {renderError("decision_date")}
         </div>
 
         <div>
-          <Label>Effective From</Label>
-          <Input type="date" name="effective_from" value={form.effective_from} onChange={handleChange} />
+          <CustomDatePicker
+            id="effective_from"
+            label="Effective From"
+            value={form.effective_from}
+            onChange={(value) => {
+              setForm((prev) => ({ ...prev, effective_from: value }));
+              clearFieldError("effective_from");
+            }}
+            error={!!formErrors.effective_from}
+            placeholder="dd/MM/yyyy"
+          />
           {renderError("effective_from")}
         </div>
 
         <div>
-          <Label>Effective To</Label>
-          <Input type="date" name="effective_to" value={form.effective_to || ""} onChange={handleChange} />
+          <CustomDatePicker
+            id="effective_to"
+            label="Effective To"
+            value={form.effective_to || ""}
+            onChange={(value) => {
+              setForm((prev) => ({ ...prev, effective_to: value }));
+              clearFieldError("effective_to");
+            }}
+            error={!!formErrors.effective_to}
+            placeholder="dd/MM/yyyy"
+          />
           {renderError("effective_to")}
         </div>
       </div>
