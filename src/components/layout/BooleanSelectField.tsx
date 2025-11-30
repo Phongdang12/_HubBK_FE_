@@ -1,3 +1,4 @@
+// fileName: BooleanSelectField.tsx
 import { FC } from 'react';
 
 interface Option {
@@ -11,6 +12,7 @@ interface BooleanSelectFieldProps {
   options: Option[];
   isEditing: boolean;
   onChange: (value: boolean) => void;
+  onBlur?: () => void; // ✅ Đã thêm onBlur
   error?: string;
 }
 
@@ -20,6 +22,7 @@ const BooleanSelectField: FC<BooleanSelectFieldProps> = ({
   options,
   isEditing,
   onChange,
+  onBlur, // ✅ Đã nhận onBlur
   error,
 }) => {
   return (
@@ -30,6 +33,7 @@ const BooleanSelectField: FC<BooleanSelectFieldProps> = ({
           className='rounded-lg border border-gray-300 p-2 focus:border-blue-500 focus:outline-none'
           value={value ? 'true' : 'false'} // Chuyển giá trị boolean thành 'true' hoặc 'false' cho select
           onChange={(e) => onChange(e.target.value === 'true')} // Chuyển lại thành boolean
+          onBlur={onBlur} // ✅ Đã gắn onBlur
         >
           <option value=''>Select {label}</option>
           {options.map((option) => (

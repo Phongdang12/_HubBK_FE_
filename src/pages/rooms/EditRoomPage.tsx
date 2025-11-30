@@ -13,21 +13,26 @@ import { toast } from 'react-hot-toast';
 
 const EditRoomPage = () => {
   const { buildingId, roomId } = useParams<{ buildingId: string; roomId: string }>();
-  const navigate = useNavigate();
   const [room, setRoom] = useState<Room | null>(null);
   const [loading, setLoading] = useState(true);
 
   // Fetch room detail
   useEffect(() => {
     (async () => {
-      if (!buildingId || !roomId) return;
+      // ✅ SỬA: Kiểm tra chặt chẽ hơn (chặn cả chuỗi "undefined" do navigate sai tạo ra)
+      if (!buildingId || !roomId || buildingId === 'undefined' || roomId === 'undefined') {
+        console.error("Invalid Building ID or Room ID");
+        setLoading(false);
+        return;
+      }
+
       setLoading(true);
       try {
         const result = await getRoomDetail(buildingId, roomId);
         setRoom(result);
-      } catch (err) {
+      } catch (err: any) {
         console.error('Failed to fetch room detail:', err);
-        toast.error('Failed to load room information.');
+        toast.error(err.message || 'Failed to load room information.');
       } finally {
         setLoading(false);
       }
@@ -35,18 +40,11 @@ const EditRoomPage = () => {
   }, [buildingId, roomId]);
 
   // Handle form submit
-const handleSubmit = async (data: Partial<Room>) => {
-  try {
-    await updateRoom(buildingId!, roomId!, data);
+  const handleSubmit = async (data: Room) => {
+    // Gọi API update
+    await updateRoom(data.building_id, data.room_id, data);
     toast.success("Room updated successfully");
-
-    setTimeout(() => {
-      navigate(`/rooms/view/${buildingId}/${roomId}`);
-    }, 300);
-  } catch {
-    toast.error("Update failed");
-  }
-};
+  };
 
   return (
     <div className='flex min-h-screen w-full flex-col'>
@@ -59,7 +57,10 @@ const handleSubmit = async (data: Partial<Room>) => {
           ) : room ? (
             <SharedRoomForm room={room} mode='edit' onSubmit={handleSubmit} />
           ) : (
-            <div>Room not found</div>
+            <div className="text-red-500">
+              Room not found or Invalid ID. <br/>
+              Building: {buildingId}, Room: {roomId}
+            </div>
           )}
         </main>
       </div>

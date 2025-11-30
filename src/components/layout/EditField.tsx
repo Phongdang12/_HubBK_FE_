@@ -1,10 +1,12 @@
+// fileName: EditField.tsx
 import { FC, ReactNode, useRef } from 'react';
 
 interface EditableFieldProps {
-  label: string;
+  label: string|ReactNode;
   value: string;
   isEditing: boolean;
   onChange: (value: string) => void;
+  onBlur?: () => void; // ✅ Đã thêm onBlur
   type?: string;
   icon?: ReactNode;
   error?: string;
@@ -17,6 +19,7 @@ const EditField: FC<EditableFieldProps> = ({
   value,
   isEditing,
   onChange,
+  onBlur, // ✅ Đã nhận onBlur
   type = 'text',
   icon,
   error,
@@ -49,6 +52,7 @@ const EditField: FC<EditableFieldProps> = ({
             }`}
             value={value}
             onChange={(e) => onChange(e.target.value)}
+            onBlur={onBlur} // ✅ Đã gắn onBlur
           />
           {icon && (
             <button

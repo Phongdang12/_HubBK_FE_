@@ -18,20 +18,29 @@ const EditStudentPage = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    (async () => {
-      if (!ssn) return;
-      setLoading(true);
-      try {
-        const result = await getStudentDetail(ssn);
-        setStudent(result);
-      } catch (err) {
-        console.error('Failed to fetch student detail:', err);
-        toast.error('Failed to load student information.');
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, [ssn]);
+  (async () => {
+    console.log('Internal ID from route:', ssn);
+
+    if (!ssn) {
+      toast.error('Internal ID không tồn tại trong URL');
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const result = await getStudentDetail(ssn);
+      setStudent(result);
+    } catch (err) {
+      console.error('Failed to fetch student detail:', err);
+      toast.error('Failed to load student information.');
+      setStudent(null); // ✅ Đảm bảo student là null nếu API thất bại
+    } finally {
+      setLoading(false);
+    }
+  })();
+}, [ssn]);
+
 
   const handleSubmit = async (data: Student) => {
   try {

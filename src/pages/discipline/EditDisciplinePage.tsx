@@ -38,7 +38,7 @@ const EditDisciplinePage: React.FC = () => {
 
         setInitialData({
           action_id: data.action_id,
-          sssn: data.sssn || "",
+          student_id: data.student_id || "",
           action_type: data.action_type || "",
           reason: data.reason || "",
           severity_level: data.severity_level || "",

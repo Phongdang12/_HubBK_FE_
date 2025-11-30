@@ -4,7 +4,7 @@ import axios from "axios";
 
 export interface Discipline {
   action_id: string;
-  sssn: string;
+  student_id: string;
   action_type: string;
   reason: string;
   severity_level: string;
@@ -88,4 +88,14 @@ export const deleteDiscipline = async (
 ): Promise<boolean> => {
   const res = await axios.delete(`${API}/${action_id}`);
   return !!res.data; 
+};
+export const getDisciplineByStudentId = async (studentId: string): Promise<Discipline[]> => {
+  try {
+    // Gọi đúng endpoint đã sửa
+    const res = await axios.get(`${API}/student/${studentId}`);
+    return res.data as Discipline[];
+  } catch (error) {
+    console.error('Failed to fetch disciplines by Student ID', error);
+    return []; 
+  }
 };

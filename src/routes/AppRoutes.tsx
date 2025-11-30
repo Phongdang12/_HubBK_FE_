@@ -16,7 +16,7 @@ import EditDisciplinePage from '@/pages/discipline/EditDisciplinePage';
 import ViewDisciplinePage from '@/pages/discipline/ViewDisciplinePage';
 import ViewRoomPage from '@/pages/rooms/ViewRoomPage';
 import EditRoomPage from '@/pages/rooms/EditRoomPage';
-
+import DisciplineFormsManager from '@/pages/discipline/DisciplineFormsManager';
 export const appRoutes: RouteObject[] = [
   {
     path: '/',
@@ -109,6 +109,14 @@ export const appRoutes: RouteObject[] = [
     element: (
       <PrivateRoute>
         <Disciplines />
+      </PrivateRoute>
+    ),
+  },
+  {
+    path: '/disciplines/forms',
+    element: (
+      <PrivateRoute>
+        <DisciplineFormsManager />
       </PrivateRoute>
     ),
   },
