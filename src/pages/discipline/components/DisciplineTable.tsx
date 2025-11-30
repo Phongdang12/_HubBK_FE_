@@ -1,4 +1,4 @@
-// src/pages/discipline/components/DisciplineTable.tsx
+// fileName: DisciplineTable.tsx
 import { FC, useState } from "react";
 import { Discipline, deleteDiscipline } from "@/services/disciplineService";
 import {
@@ -13,32 +13,43 @@ import { Button } from "@/components/ui/button";
 import ConfirmDialog from "@/components/layout/ConfirmDialog";
 import { toast } from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
-import { // Import Select components
+import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'; 
+} from '@/components/ui/select';
+// Import Icons
+import { ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+
+// Định nghĩa kiểu SortConfig
+export type SortConfig = {
+  key: keyof Discipline | 'student_id' | null; // Thêm student_id vào type nếu keyof Discipline chưa đủ
+  direction: 'asc' | 'desc';
+};
 
 interface Props {
   disciplines: Discipline[];
   onDeleteLocal: (action_id: string) => void;
-  // THÊM PROPS CHO HÀM SETTER VÀ STATE
+  globalQuery: string;
   selectedStatus: string;
   setSelectedStatus: (val: string) => void;
   selectedSeverity: string;
   setSelectedSeverity: (val: string) => void;
+  sortConfig: SortConfig;
+  onSort: (key: keyof Discipline | 'student_id') => void;
 }
 
-const DisciplineTable: FC<Props> = ({ 
-  disciplines, 
+const DisciplineTable: FC<Props> = ({
+  disciplines,
   onDeleteLocal,
-  // Nhận các props filter từ DisciplinesPage
-  selectedStatus, 
-  setSelectedStatus, 
-  selectedSeverity, 
-  setSelectedSeverity 
+  globalQuery,
+  selectedStatus,
+  setSelectedStatus,
+  selectedSeverity,
+  setSelectedSeverity,
+  sortConfig,
+  onSort,
 }) => {
   const [selected, setSelected] = useState<Discipline | null>(null);
   const [openDelete, setOpenDelete] = useState(false);
@@ -46,10 +57,6 @@ const DisciplineTable: FC<Props> = ({
 
   const handleView = (d: Discipline) => {
     navigate(`/disciplines/view/${d.action_id}`);
-  };
-
-  const handleEdit = (d: Discipline) => {
-    navigate(`/disciplines/edit/${d.action_id}`);
   };
 
   const handleDelete = (d: Discipline) => {
@@ -62,79 +69,130 @@ const DisciplineTable: FC<Props> = ({
     try {
       await deleteDiscipline(selected.action_id);
       onDeleteLocal(selected.action_id);
-      toast.success('Discipline deleted successfully!'); 
-      
+      toast.success('Discipline deleted successfully!');
     } catch (error: any) {
-      toast.error(error?.response?.data?.message || "Xóa thất bại");
+      toast.error(error?.response?.data?.message || "Delete failed");
     }
     setOpenDelete(false);
   };
 
   const statusOptions = [
-      { value: 'all', label: 'All' },
-      { value: 'pending', label: 'Pending' },
-      { value: 'active', label: 'Active' },
-      { value: 'completed', label: 'Completed' },
-      { value: 'cancelled', label: 'Cancelled' }
+    { value: 'all', label: 'All' },
+    { value: 'pending', label: 'Pending' },
+    { value: 'active', label: 'Active' },
+    { value: 'completed', label: 'Completed' },
+    { value: 'cancelled', label: 'Cancelled' }
   ];
 
   const severityOptions = [
-      { value: 'all', label: 'All' },
-      { value: 'low', label: 'Low' },
-      { value: 'medium', label: 'Medium' },
-      { value: 'high', label: 'High' },
-      { value: 'expulsion', label: 'Expulsion' }
+    { value: 'all', label: 'All' },
+    { value: 'low', label: 'Low' },
+    { value: 'medium', label: 'Medium' },
+    { value: 'high', label: 'High' },
+    { value: 'expulsion', label: 'Expulsion' }
   ];
+
+  const highlightText = (text: string) => {
+    if (!globalQuery || !text) return text;
+    const regex = new RegExp(`(${globalQuery})`, 'gi');
+    const parts = text.split(regex);
+    return parts.map((part, index) =>
+      part.toLowerCase() === globalQuery.toLowerCase() ? (
+        <span
+          key={index}
+          style={{
+            backgroundColor: '#FFE066',
+            fontWeight: 600,
+            padding: '2px 4px',
+            borderRadius: '4px',
+          }}
+        >
+          {part}
+        </span>
+      ) : (
+        part
+      )
+    );
+  };
+
+  // 🆕 HELPER: Render nút sort header (Tái sử dụng cho ActionID và StudentID)
+  const renderSortableHeader = (label: string, key: keyof Discipline | 'student_id') => (
+    <Button
+      variant="ghost"
+      onClick={() => onSort(key)}
+      className="w-full h-full flex items-center justify-center gap-2 font-semibold text-gray-700 hover:bg-gray-200 rounded-none"
+    >
+      {label}
+      {sortConfig.key === key ? (
+        sortConfig.direction === 'asc' ? (
+          <ArrowUp className="h-4 w-4" />
+        ) : (
+          <ArrowDown className="h-4 w-4" />
+        )
+      ) : (
+        <ArrowUpDown className="h-4 w-4 opacity-50" />
+      )}
+    </Button>
+  );
 
   return (
     <div className="rounded-md border shadow-sm">
       <Table>
         <TableHeader className="bg-gray-100">
           <TableRow>
-            <TableHead className="text-center font-semibold">Action ID</TableHead>
-            <TableHead className="text-center font-semibold">Student SSN</TableHead>
-            <TableHead className="text-center font-semibold">Form</TableHead>
             
-            {/* THAY ĐỔI 1/4: COLUMN SEVERITY LEVEL (Bây giờ nằm trước Status) */}
-            <TableHead className="font-semibold px-2">
-                <div className="flex items-center justify-center">
-                    <span className="mr-1">Severity Level</span>
-                    <Select
-                      value={selectedSeverity}
-                      onValueChange={(value) => setSelectedSeverity(value)}
-                    >
-                      <SelectTrigger className='flex h-8 w-8 items-center justify-center border-none bg-transparent p-0 shadow-none hover:bg-transparent focus:ring-0 focus:outline-none'>
-                      </SelectTrigger>
-                      <SelectContent>
-                        {severityOptions.map((opt) => (
-                          <SelectItem key={opt.value} value={opt.value}>
-                            {opt.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                </div>
+            {/* 🆕 CỘT ACTION ID (Có Sort) */}
+            <TableHead className="text-center font-semibold p-0 w-[140px]">
+              {renderSortableHeader('Action ID', 'action_id')}
             </TableHead>
-            
-            {/* THAY ĐỔI 2/4: COLUMN STATUS (Bây giờ nằm sau Severity Level) */}
+
+            {/* 🆕 CỘT STUDENT ID (Có Sort) */}
+            <TableHead className="text-center font-semibold p-0 w-[140px]">
+              {renderSortableHeader('Student ID', 'student_id')}
+            </TableHead>
+
+            <TableHead className="text-center font-semibold p-0 w-[140px]">
+              {renderSortableHeader('Form', 'action_type')}
+            </TableHead>
+
+            {/* SEVERITY FILTER */}
             <TableHead className="font-semibold px-2">
-                <div className="flex items-center justify-center">
-                    <span className="mr-1">Status</span>
-                    <Select
-                      value={selectedStatus}
-                      onValueChange={(value) => setSelectedStatus(value)}
-                    >
-                      <SelectTrigger className='flex h-8 w-8 items-center justify-center border-none bg-transparent p-0 shadow-none hover:bg-transparent focus:ring-0 focus:outline-none'>
-                      </SelectTrigger>
-                      <SelectContent>
-                        {statusOptions.map((opt) => (
-                          <SelectItem key={opt.value} value={opt.value}>
-                            {opt.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                </div>
+              <div className="flex items-center justify-center">
+                <span className="mr-1">Severity</span>
+                <Select
+                  value={selectedSeverity}
+                  onValueChange={(value) => setSelectedSeverity(value)}
+                >
+                  <SelectTrigger className="h-8 w-8 border-none bg-transparent shadow-none" />
+                  <SelectContent>
+                    {severityOptions.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </TableHead>
+
+            {/* STATUS FILTER */}
+            <TableHead className="font-semibold px-2">
+              <div className="flex items-center justify-center">
+                <span className="mr-1">Status</span>
+                <Select
+                  value={selectedStatus}
+                  onValueChange={(value) => setSelectedStatus(value)}
+                >
+                  <SelectTrigger className="h-8 w-8 border-none bg-transparent shadow-none" />
+                  <SelectContent>
+                    {statusOptions.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </TableHead>
 
             <TableHead className="text-center font-semibold">Decision Date</TableHead>
@@ -145,43 +203,51 @@ const DisciplineTable: FC<Props> = ({
         <TableBody>
           {disciplines.length === 0 ? (
             <TableRow>
-              {/* Cập nhật colspan lên 7 (5 cột thường + 2 cột lọc) */}
-              <TableCell colSpan={7} className="py-6 text-center text-gray-500"> 
-                Không có dữ liệu
+              <TableCell colSpan={7} className="py-6 text-center text-gray-500">
+                No data
               </TableCell>
             </TableRow>
           ) : (
             disciplines.map((d) => (
-              <TableRow
-                key={d.action_id}
-                className="hover:bg-gray-50 transition"
-              >
-                <TableCell className="text-center">{d.action_id}</TableCell>
-                <TableCell className="text-center">{d.sssn}</TableCell>
-                <TableCell className="text-center">{d.action_type}</TableCell>
-                
-                {/* THAY ĐỔI 3/4: CELL SEVERITY LEVEL */}
-                <TableCell className="text-center">{d.severity_level}</TableCell>
-                
-                {/* THAY ĐỔI 4/4: CELL STATUS */}
-                <TableCell className="text-center">{d.status}</TableCell>
-                
-                <TableCell className="text-center">{d.decision_date}</TableCell>
+              <TableRow key={d.action_id} className="hover:bg-gray-50 transition">
+                <TableCell className="text-center">
+                  {highlightText(d.action_id)}
+                </TableCell>
+
+                <TableCell className="text-center">
+                  {/* Fallback hiển thị sssn nếu không có student_id */}
+                  {highlightText(d.student_id || '-')} 
+                </TableCell>
+
+                <TableCell className="text-center">
+                  {highlightText(d.action_type)}
+                </TableCell>
+
+                <TableCell className="text-center">
+                  {highlightText(d.severity_level)}
+                </TableCell>
+
+                <TableCell className="text-center">
+                  {highlightText(d.status)}
+                </TableCell>
+
+                <TableCell className="text-center">
+                  {d.decision_date}
+                </TableCell>
 
                 <TableCell>
                   <div className="flex justify-center gap-2">
                     <Button
                       size="sm"
-                      style={{ backgroundColor: '#032B91', color: 'white' }}
-                      className="bg-blue-600 text-white hover:bg-blue-700"
+                      style={{ backgroundColor: '#1488DB', color: 'white' }}
                       onClick={() => handleView(d)}
                     >
                       View
                     </Button>
+
                     <Button
                       size="sm"
-                      className="bg-red-600 text-white hover:bg-red-700"
-                      style={{ backgroundColor: '#e53935' }}
+                      style={{ backgroundColor: '#e53935', color: 'white' }}
                       onClick={() => handleDelete(d)}
                     >
                       Delete
@@ -197,13 +263,9 @@ const DisciplineTable: FC<Props> = ({
       <ConfirmDialog
         open={openDelete}
         onOpenChange={setOpenDelete}
-        title="Xác nhận xóa"
-        onConfirm={confirmDelete} 
-        message={
-          <>
-            Delete Discipline with Action ID: <b>{selected?.action_id}</b> ?
-          </>
-        }
+        title="Confirm deletion"
+        onConfirm={confirmDelete}
+        message={<>Delete Discipline with Action ID: <b>{selected?.action_id}</b> ?</>}
       />
     </div>
   );

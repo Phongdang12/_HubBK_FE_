@@ -1,10 +1,11 @@
 import { useParams } from 'react-router-dom';
 import { useEffect, useState } from 'react';
-import { getStudentDetail, Student } from '@/services/studentService';
+import {Student } from '@/services/studentService';
 import Header from '@/components/layout/Header';
 import Sidebar from '@/components/layout/Sidebar';
 import Footer from '@/components/layout/Footer';
 import SharedStudentForm from './components/SharedStudentForm';
+import { toast } from 'react-hot-toast';
 
 const ViewStudentPage = () => {
   const { ssn } = useParams();
@@ -13,13 +14,42 @@ const ViewStudentPage = () => {
 
   useEffect(() => {
     const fetchStudent = async () => {
-      if (!ssn) return;
+      if (!ssn) {
+        setLoading(false);
+        return;
+      }
       try {
-        // ✅ Gọi đúng API chi tiết sinh viên
-        const detail = await getStudentDetail(ssn);
+        // ✅ THÊM headers để xác thực (ví dụ: token JWT)
+        const token = localStorage.getItem('authToken'); // Lấy token từ nơi lưu trữ
+
+        const response = await fetch(`/api/students/${ssn}`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            // Truyền token xác thực:
+            ...(token && { Authorization: `Bearer ${token}` }), 
+          },
+        });
+
+        // Bạn đã thêm logic kiểm tra status 401/404 trước đó
+        if (!response.ok) {
+          console.error(`❌ Lỗi HTTP khi tải sinh viên: ${response.status}`);
+          
+          // Xử lý lỗi 401: Chuyển hướng người dùng đến trang đăng nhập
+          if (response.status === 401) {
+             // Ví dụ: navigate('/login');
+             toast.error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
+          }
+
+          setStudent(null); 
+          return;
+        }
+
+        const detail = await response.json();
         setStudent(detail);
       } catch (error) {
         console.error('❌ Lỗi khi tải chi tiết sinh viên:', error);
+        setStudent(null); 
       } finally {
         setLoading(false);
       }

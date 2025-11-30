@@ -1,3 +1,4 @@
+// fileName: EditForm.tsx
 import { FC } from 'react';
 import { Button } from '@/components/ui/button';
 import { X } from 'lucide-react';
@@ -9,6 +10,7 @@ interface EditListFieldProps {
   onChange: (index: number, value: string) => void;
   onAdd: () => void;
   onRemove: (index: number) => void;
+  onBlur?: () => void; // ✅ Đã thêm onBlur
   maxItems?: number;
   error?: string;
 }
@@ -20,10 +22,19 @@ const EditForm: FC<EditListFieldProps> = ({
   onChange,
   onAdd,
   onRemove,
+  onBlur, // ✅ Đã nhận onBlur
   maxItems = 3,
   error,
 }) => {
   const renderValues = values.length > 0 ? values : [''];
+  
+  // Hàm xử lý onBlur
+  const handleBlur = (i: number) => {
+    // Nếu đây là ô cuối cùng (hoặc ô đầu tiên nếu list rỗng), ta kiểm tra
+    if (onBlur && (i === values.length - 1 || values.length === 0)) {
+        onBlur();
+    }
+  };
 
   return (
     <div className='md:col-span-2'>
@@ -37,6 +48,7 @@ const EditForm: FC<EditListFieldProps> = ({
               value={value}
               placeholder={label}
               onChange={(e) => onChange(i, e.target.value)}
+              onBlur={onBlur} // ✅ Gắn onBlur
             />
           ) : (
             <p>{value}</p>
@@ -46,9 +58,11 @@ const EditForm: FC<EditListFieldProps> = ({
             <button
               type='button'
               className='flex h-6 w-6 items-center justify-center rounded-full bg-red-100 text-red-600 hover:bg-red-200 hover:text-red-700'
-              onClick={() => onRemove(i)}
+              onClick={() => {
+                onRemove(i);
+                if (onBlur) onBlur(); // Re-validate khi xóa
+              }}
             >
-              X
               <X size={14} />
             </button>
           )}

@@ -28,7 +28,7 @@ const Userbar = () => {
             <li>
               <button
                 onClick={() => logoutUser(navigate)}
-                className='block w-full px-4 py-2 text-left hover:bg-[#032B91] hover:text-white'
+                className='block w-full px-4 py-2 text-left hover:bg-[#032B91] hover:text-black'
               >
                 Logout
               </button>

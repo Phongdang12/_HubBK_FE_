@@ -85,9 +85,9 @@ const ViewDisciplinePage: React.FC = () => {
               </div>
 
               <div>
-                <strong>SSSN:</strong> {data.sssn}
+                <strong>Student ID:</strong> {data.student_id}
               </div>
-
+              
               <div>
                 <strong>Action Type:</strong> {data.action_type}
               </div>
