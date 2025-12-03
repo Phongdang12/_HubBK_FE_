@@ -1,5 +1,5 @@
 // fileName: TransferStudentDialog.tsx
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react'; // Thêm useMemo
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -28,22 +28,36 @@ interface Props {
   onSuccess: () => void;
 }
 
-const BUILDINGS = ['BK001', 'BK002', 'BK003', 'BK004'];
+// 1. ĐỊNH NGHĨA QUY TẮC TÒA NHÀ (Đồng bộ với AssignRoomDialog)
+const ALL_BUILDINGS = ['BK001', 'BK002', 'BK003', 'BK004'];
+const BUILDING_GENDER_RULES: Record<string, 'M' | 'F'> = {
+  'BK001': 'M',
+  'BK002': 'M',
+  'BK003': 'F',
+  'BK004': 'F',
+};
 
-// Hàm hỗ trợ hiển thị nhãn giới tính
+// Helper chuẩn hóa giới tính
+const normalizeSex = (sex?: string | null) => {
+  if (!sex) return '';
+  const s = sex.toUpperCase();
+  if (s === 'M' || s === 'MALE' || s === 'NAM') return 'M';
+  if (s === 'F' || s === 'FEMALE' || s === 'NU' || s === 'NỮ') return 'F';
+  return '';
+};
+
+// Hàm hiển thị nhãn giới tính
 const getGenderLabel = (gender: string) => {
-  const g = gender?.toLowerCase();
-  if (g === 'male') return 'Nam';
-  if (g === 'female') return 'Nữ';
-  if (g === 'co-ed') return 'Nam/Nữ';
+  const g = normalizeSex(gender);
+  if (g === 'M') return 'Male';
+  if (g === 'F') return 'Female';
   return gender;
 };
 
-// Hàm xác định màu sắc dựa trên giới tính
 const getGenderColor = (gender: string) => {
-  const g = gender?.toLowerCase();
-  if (g === 'male') return 'text-blue-600';
-  if (g === 'female') return 'text-pink-600';
+  const g = normalizeSex(gender);
+  if (g === 'M') return 'text-blue-600';
+  if (g === 'F') return 'text-pink-600';
   return 'text-gray-600';
 };
 
@@ -62,6 +76,18 @@ export function TransferStudentDialog({ isOpen, onClose, student, onSuccess }: P
     }
   }, [isOpen]);
 
+  // 2. LỌC DANH SÁCH TÒA NHÀ HỢP LỆ THEO GIỚI TÍNH SV
+  const validBuildings = useMemo(() => {
+    if (!student) return [];
+    const sGender = normalizeSex(student.sex);
+    
+    return ALL_BUILDINGS.filter(b => {
+      const rule = BUILDING_GENDER_RULES[b];
+      // Nếu tòa có rule thì phải khớp giới tính, nếu không có rule thì hiển thị luôn
+      return rule ? rule === sGender : true;
+    });
+  }, [student]);
+
   useEffect(() => {
     if (!targetBuilding) return;
 
@@ -69,41 +95,36 @@ export function TransferStudentDialog({ isOpen, onClose, student, onSuccess }: P
       setLoadingRooms(true);
       try {
         const data = await getRoomsByBuilding(targetBuilding);
+        const sGender = normalizeSex(student?.sex);
         
-        // --- LOGIC LỌC CHẶT CHẼ ---
+        // --- LOGIC LỌC PHÒNG ---
         const availableRooms = data.filter(r => {
           // 1. Loại bỏ phòng đã đầy
           if (r.current_num_of_students >= r.max_num_of_students) return false;
+          // 2. Loại bỏ phòng đang bảo trì
+          if (r.room_status !== 'Available') return false;
 
-          // 2. Loại bỏ phòng hiện tại của sinh viên
-          // Chuẩn hóa dữ liệu về chuỗi và cắt khoảng trắng để so sánh chính xác
+          // 3. Loại bỏ chính phòng hiện tại
           const sRoomId = student?.room_id ? String(student.room_id).trim() : '';
           const sBuildingId = student?.building_id ? String(student.building_id).trim() : '';
           const tRoomId = String(r.room_id).trim();
           const tBuildingId = String(targetBuilding).trim();
-
-          // Nếu cùng tòa VÀ cùng phòng -> Ẩn đi
-          // (Lưu ý: Nếu sBuildingId rỗng do API thiếu dữ liệu, ta vẫn so sánh roomId để an toàn)
           const isSameBuilding = sBuildingId === '' || sBuildingId === tBuildingId;
-          if (isSameBuilding && sRoomId === tRoomId) {
-            return false;
+          
+          if (isSameBuilding && sRoomId === tRoomId) return false;
+
+          // 4. Loại bỏ phòng lệch giới tính (nếu phòng đã có người hoặc đã set gender)
+          const rGender = normalizeSex(r.room_gender);
+          if ((r.current_num_of_students > 0 || r.room_gender) && rGender) {
+             if (rGender !== sGender) return false;
           }
 
-          // 3. Loại bỏ phòng lệch giới tính
-          let isGenderCompatible = true;
-          if (student?.sex && r.room_gender) {
-            const studentSexChar = student.sex.toString().trim().charAt(0).toUpperCase();
-            const roomGenderChar = r.room_gender.toString().trim().charAt(0).toUpperCase();
-            // So sánh ký tự đầu (M/F)
-            isGenderCompatible = studentSexChar === roomGenderChar;
-          }
-
-          return isGenderCompatible;
+          return true;
         });
 
         setRooms(availableRooms);
       } catch (error) {
-        toast.error('Không thể tải danh sách phòng.');
+        toast.error('Unable to load room list.');
       } finally {
         setLoadingRooms(false);
       }
@@ -122,46 +143,52 @@ export function TransferStudentDialog({ isOpen, onClose, student, onSuccess }: P
         targetRoomId: targetRoom,
       });
 
-      toast.success(`Đã chuyển sinh viên ${student.last_name} sang phòng ${targetRoom}!`);
+      toast.success(`Student ${student.last_name} has been transferred to room ${targetRoom}!`);
       onSuccess(); 
       onClose();
     } catch (error: any) {
-      const message = error?.message || 'Chuyển phòng thất bại.';
+      const message = error?.response?.data?.message || error?.message || 'Transfer failed.';
       toast.error(message);
     } finally {
       setSubmitting(false);
     }
   };
 
+  const sGenderDisplay = getGenderLabel(student?.sex || '');
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Chuyển phòng</DialogTitle>
+          <DialogTitle>Transfer Student</DialogTitle>
           <DialogDescription>
-            Chuyển sinh viên <strong>{student?.first_name} {student?.last_name}</strong> ({getGenderLabel(student?.sex || '')}) sang phòng khác.
+            Transfer student <strong>{student?.first_name} {student?.last_name}</strong> ({sGenderDisplay}) to another room.
           </DialogDescription>
         </DialogHeader>
         
         <div className="grid gap-4 py-4">
           <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="building" className="text-right">Tòa nhà</Label>
+            <Label htmlFor="building" className="text-right">Building</Label>
             <div className="col-span-3">
               <Select onValueChange={setTargetBuilding} value={targetBuilding}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Chọn tòa nhà" />
+                  <SelectValue placeholder="Select building" />
                 </SelectTrigger>
                 <SelectContent>
-                  {BUILDINGS.map(b => (
-                    <SelectItem key={b} value={b}>{b}</SelectItem>
-                  ))}
+                  {validBuildings.length === 0 ? (
+                     <SelectItem value="none" disabled>No suitable building</SelectItem>
+                  ) : (
+                    validBuildings.map(b => (
+                      <SelectItem key={b} value={b}>{b}</SelectItem>
+                    ))
+                  )}
                 </SelectContent>
               </Select>
             </div>
           </div>
 
           <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="room" className="text-right">Phòng</Label>
+            <Label htmlFor="room" className="text-right">Room</Label>
             <div className="col-span-3">
               <Select 
                 onValueChange={setTargetRoom} 
@@ -169,12 +196,12 @@ export function TransferStudentDialog({ isOpen, onClose, student, onSuccess }: P
                 disabled={!targetBuilding || loadingRooms}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder={loadingRooms ? "Đang tải..." : "Chọn phòng phù hợp"} />
+                  <SelectValue placeholder={loadingRooms ? "Loading..." : "Select suitable room"} />
                 </SelectTrigger>
                 <SelectContent>
                   {rooms.length === 0 && !loadingRooms ? (
                     <div className="p-2 text-sm text-gray-500 text-center">
-                      {targetBuilding ? "Không có phòng phù hợp" : "Vui lòng chọn tòa nhà"}
+                      {targetBuilding ? "No suitable rooms available" : "Please select a building"}
                     </div>
                   ) : (
                     rooms.map(r => (
@@ -182,7 +209,7 @@ export function TransferStudentDialog({ isOpen, onClose, student, onSuccess }: P
                         <div className="flex items-center justify-between w-full gap-2">
                           <span className="font-semibold">{r.room_id}</span>
                           <span className={`text-xs ${getGenderColor(r.room_gender)}`}>
-                            ({getGenderLabel(r.room_gender)} - Trống {r.max_num_of_students - r.current_num_of_students})
+                            ({getGenderLabel(r.room_gender)} - Available {r.max_num_of_students - r.current_num_of_students})
                           </span>
                         </div>
                       </SelectItem>
@@ -202,7 +229,7 @@ export function TransferStudentDialog({ isOpen, onClose, student, onSuccess }: P
             style={{ backgroundColor: '#032B91' }}
           >
             {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Xác nhận chuyển
+            Confirm Transfer
           </Button>
         </DialogFooter>
       </DialogContent>

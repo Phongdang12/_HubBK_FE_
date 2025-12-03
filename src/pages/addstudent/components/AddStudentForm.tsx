@@ -55,14 +55,19 @@ const ETHNIC_GROUP_OPTIONS = [
   { label: 'Khác', value: 'Other' },
 ];
 const FACULTY_OPTIONS = [
-  { label: 'Information Technology', value: 'Information Technology' },
-  { label: 'Mechanical Engineering', value: 'Mechanical Engineering' },
+  { label: 'Applied Sciences', value: 'Applied Sciences' },
+  { label: 'Chemical Engineering', value: 'Chemical Engineering' },
   { label: 'Civil Engineering', value: 'Civil Engineering' },
-  { label: 'Environmental Engineering', value: 'Environmental Engineering' },
-  { label: 'Logistics and Supply Chain Management', value: 'Logistics and Supply Chain Management' },
-  { label: 'Biotechnology', value: 'Biotechnology' },
-  { label: 'Computer Science', value: 'Computer Science' },
+  { label: 'Computer Science and Engineering', value: 'Computer Science and Engineering' },
+  { label: 'Electrical and Electronic Engineering', value: 'Electrical and Electronic Engineering' },
+  { label: 'Environment and Natural Resources', value: 'Environment and Natural Resources' },
+  { label: 'Geological and Petroleum Engineering', value: 'Geological and Petroleum Engineering' },
+  { label: 'Industrial Management', value: 'Industrial Management' },
+  { label: 'Materials Technology', value: 'Materials Technology' },
+  { label: 'Mechanical Engineering', value: 'Mechanical Engineering' },
+  { label: 'Transportation Engineering', value: 'Transportation Engineering' },
 ];
+
 
 interface Option { label: string; value: string; code: number; }
 const fetchApi = async (url: string, params: Record<string, any> = {}) => {

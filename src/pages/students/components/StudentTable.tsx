@@ -14,20 +14,22 @@ import ConfirmDialog from '@/components/layout/ConfirmDialog';
 import { toast, Toaster } from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 // 🆕 Import Icons
-import { ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { ArrowUpDown, ArrowUp, ArrowDown, UserPlus, Home, Eye, Trash2 } from "lucide-react";
 
 interface StudentTableProps {
   students: Student[];
   onDelete: (id: string) => void;
+  // 🔥 Thêm prop để xử lý gán phòng
+  onAssign?: (student: Student) => void;
   
-  // Props sort hiện tại của bạn (là mảng objects)
+  // Props sort hiện tại của bạn
   sorts: {
-    field: 'student_id' | 'faculty' | 'building_id' | 'room_id'; // Thêm room_id nếu cần
+    field: 'student_id' | 'faculty' | 'building_id' | 'room_id' | 'last_name'; 
     order: 'asc' | 'desc';
   }[];
   
   onSort: (
-    field: 'student_id' | 'faculty' | 'building_id' | 'room_id',
+    field: 'student_id' | 'faculty' | 'building_id' | 'room_id' | 'last_name',
     e?: React.MouseEvent
   ) => void;
 
@@ -37,6 +39,7 @@ interface StudentTableProps {
 const StudentTable: FC<StudentTableProps> = ({
   students,
   onDelete,
+  onAssign,
   sorts,
   onSort,
   globalQuery,
@@ -63,9 +66,9 @@ const StudentTable: FC<StudentTableProps> = ({
       >
         {label}
         {order === 'asc' ? (
-          <ArrowUp className="h-4 w-4" />
+          <ArrowUp className="h-4 w-4 text-blue-600" />
         ) : order === 'desc' ? (
-          <ArrowDown className="h-4 w-4" />
+          <ArrowDown className="h-4 w-4 text-blue-600" />
         ) : (
           <ArrowUpDown className="h-4 w-4 opacity-50" />
         )}
@@ -96,7 +99,6 @@ const StudentTable: FC<StudentTableProps> = ({
 
   // ===== HIGHLIGHT =====
   const highlightText = (text: string | null | undefined) => {
-    // 1. Thêm kiểm tra này để tránh lỗi .split() trên null
     if (!text) return ""; 
 
     if (!globalQuery) return text;
@@ -109,7 +111,6 @@ const StudentTable: FC<StudentTableProps> = ({
         <span
           key={index}
           style={{
-            
             backgroundColor: '#FFE066',
             fontWeight: 600,
             padding: '2px 4px',
@@ -123,14 +124,12 @@ const StudentTable: FC<StudentTableProps> = ({
       )
     );
   };
+
   return (
     <div>
       <Table>
         <TableHeader className='bg-gray-100'>
           <TableRow>
-            <TableHead>Internal ID</TableHead>
-            
-            {/* 🆕 STUDENT ID */}
             <TableHead className="p-0">
               {renderHeaderButton('Student ID', 'student_id')}
             </TableHead>
@@ -139,22 +138,20 @@ const StudentTable: FC<StudentTableProps> = ({
               {renderHeaderButton('Full Name', 'last_name')}
             </TableHead>
 
-            {/* 🆕 FACULTY */}
-            <TableHead className="p-0">
+            <TableHead className="p-0 hidden md:table-cell">
               {renderHeaderButton('Faculty', 'faculty')}
             </TableHead>
 
-            {/* 🆕 ROOM (Lưu ý: Backend cần hỗ trợ sort room_id) */}
+            {/* CỘT ROOM QUAN TRỌNG */}
             <TableHead className="p-0">
               {renderHeaderButton('Room', 'room_id')} 
             </TableHead>
 
-            {/* 🆕 BUILDING */}
-            <TableHead className="p-0">
+            <TableHead className="p-0 hidden lg:table-cell">
               {renderHeaderButton('Building', 'building_id')}
             </TableHead>
 
-            <TableHead>Residence Status</TableHead>
+            <TableHead>Status</TableHead>
             <TableHead className='text-center'>Actions</TableHead>
           </TableRow>
         </TableHeader>
@@ -167,48 +164,101 @@ const StudentTable: FC<StudentTableProps> = ({
               </TableCell>
             </TableRow>
           ) : (
-            students.map((student) => (
-              <TableRow key={student.ssn}>
-                <TableCell>{highlightText(student.ssn)}</TableCell>
-                <TableCell>{highlightText(student.student_id || '-')}</TableCell>
-                <TableCell>{highlightText(`${student.first_name} ${student.last_name}`)}</TableCell>
-                <TableCell>{highlightText(student.faculty)}</TableCell>
-                <TableCell>{highlightText(student.room_id || 'None')}</TableCell>
-                <TableCell>{highlightText(student.building_id || 'None')}</TableCell>
+            students.map((student) => {
+               // Kiểm tra sinh viên có phòng hay chưa
+               const hasRoom = !!student.room_id;
 
-                <TableCell>
-                  <span
-                    style={{
-                      backgroundColor: student.study_status === 'Active' ? '#52C41A' : '#808080',
-                      color: 'white',
-                      borderRadius: '9999px',
-                      padding: '4px 16px',
-                      fontWeight: 600,
-                      display: 'inline-block',
-                      fontSize: '12px',
-                      whiteSpace: 'nowrap',
-                    }}
-                  >
-                    {highlightText(
-                      student.study_status === 'Active'
-                        ? 'Active'
-                        : student.study_status === 'Non_Active'
-                        ? 'Non Active'
-                        : '-'
+               return (
+                <TableRow key={student.ssn} className="hover:bg-blue-50/30 transition-colors">
+                  <TableCell className="font-semibold">{highlightText(student.student_id || '-')}</TableCell>
+                  <TableCell>{highlightText(`${student.first_name} ${student.last_name}`)}</TableCell>
+                  <TableCell className="hidden md:table-cell text-gray-600">{highlightText(student.faculty)}</TableCell>
+                  
+                  {/* 🔥 CỘT ROOM LOGIC MỚI */}
+                  <TableCell>
+                    {hasRoom ? (
+                      // Nếu có phòng: Click để xem chi tiết
+                      <div 
+                        className="flex items-center gap-1.5 text-blue-600 font-medium cursor-pointer hover:underline group"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (student.building_id && student.room_id) {
+                             navigate(`/rooms/view/${student.building_id}/${student.room_id}`);
+                          }
+                        }}
+                        title="Click to view room details"
+                      >
+                        <Home className="h-3.5 w-3.5 group-hover:text-blue-800" />
+                        {highlightText(student.room_id)}
+                      </div>
+                    ) : (
+                      // Nếu chưa có phòng: Hiện nút Assign
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 px-2 text-orange-600 border-orange-200 bg-orange-50 hover:bg-orange-100 hover:text-orange-700 shadow-sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (onAssign) onAssign(student);
+                        }}
+                      >
+                        <UserPlus className="mr-1.5 h-3.5 w-3.5" />
+                        Assign
+                      </Button>
                     )}
-                  </span>
-                </TableCell>
+                  </TableCell>
+                  
+                  <TableCell className="hidden lg:table-cell text-gray-500">{highlightText(student.building_id || '-')}</TableCell>
 
-                <TableCell className='flex gap-2'>
-                  <Button size='sm' style={{ backgroundColor: '#1488DB' }} onClick={() => handleView(student)}>
-                    View
-                  </Button>
-                  <Button size='sm' style={{ backgroundColor: '#e53935' }} onClick={() => handleDelete(student)}>
-                    Delete
-                  </Button>
-                </TableCell>
-              </TableRow>
-            ))
+                  <TableCell>
+                    <span
+                      style={{
+                        backgroundColor: student.study_status === 'Active' ? '#f6ffed' : '#f5f5f5',
+                        color: student.study_status === 'Active' ? '#52c41a' : '#595959',
+                        border: `1px solid ${student.study_status === 'Active' ? '#b7eb8f' : '#d9d9d9'}`,
+                        borderRadius: '6px',
+                        padding: '2px 8px',
+                        fontWeight: 500,
+                        display: 'inline-block',
+                        fontSize: '12px',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {highlightText(
+                        student.study_status === 'Active'
+                          ? 'Active'
+                          : student.study_status === 'Non_Active'
+                          ? 'Non Active'
+                          : '-'
+                      )}
+                    </span>
+                  </TableCell>
+
+                  <TableCell className='text-center'>
+                    <div className="flex items-center justify-center gap-1">
+                      <Button 
+                        variant="ghost" 
+                        size='icon' 
+                        className="h-8 w-8 text-blue-600 hover:bg-blue-50"
+                        onClick={() => handleView(student)}
+                        title="View Details"
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                      <Button 
+                        variant="ghost"
+                        size='icon' 
+                        className="h-8 w-8 text-red-500 hover:bg-red-50"
+                        onClick={() => handleDelete(student)}
+                        title="Delete Student"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              );
+            })
           )}
         </TableBody>
       </Table>
@@ -224,7 +274,7 @@ const StudentTable: FC<StudentTableProps> = ({
         }}
         title='Confirm Deletion'
         message={
-          <>Do you want to delete student with SSN: <span className='font-semibold'>{selectedStudent?.ssn}</span>?</>
+          <>Do you want to delete student: <span className='font-semibold'>{selectedStudent?.first_name} {selectedStudent?.last_name}</span> ({selectedStudent?.student_id})?</>
         }
       />
     </div>

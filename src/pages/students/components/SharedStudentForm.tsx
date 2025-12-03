@@ -15,6 +15,7 @@ import { getDisciplineForms, DisciplineFormType } from "@/services/disciplineFor
 import { Building, DoorOpen, AlertTriangle, XCircle, CheckCircle, Lock } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter as ModalFooter } from '@/components/ui/dialog';
 import { getDisciplineByStudentId, Discipline } from '@/services/disciplineService';
+import { cn } from '@/lib/utils';
 
 interface Address { commune: string; province: string; }
 interface Props { student: Student; mode: 'view' | 'edit'; onSubmit?: (data: Student) => Promise<void>; }
@@ -87,24 +88,27 @@ const SharedStudentForm: React.FC<Props> = ({ student, mode, onSubmit }) => {
   const isExpelled = trainingScore < EXPULSION_THRESHOLD;
 
   useEffect(() => {
-    // Nếu bị đuổi học (điểm < 70) và trạng thái chưa phải Non_Active
-    if (isExpelled && formData.study_status !== 'Non_Active') {
-       setFormData(prev => ({ 
-         ...prev, 
-         study_status: 'Non_Active',
-         // ✅ BỔ SUNG: Tự động xóa thông tin phòng ngay lập tức
-         building_id: undefined,
-         room_id: undefined
-       }));
-       
-       if (isEdit) {
-         toast.error("Điểm rèn luyện dưới 70. Trạng thái đã tự động chuyển về Non Active và xóa khỏi phòng.", {
-           duration: 5000, // Hiện lâu hơn chút để user đọc kịp
-           icon: '⚠️'
-         });
+    // Nếu bị đuổi học (điểm < 70) và trạng thái chưa chuẩn
+    if (isExpelled) {
+       // Chỉ update nếu state hiện tại khác mong muốn để tránh loop vô hạn
+       if (formData.study_status !== 'Non_Active' || formData.building_id || formData.room_id) {
+           setFormData(prev => ({ 
+             ...prev, 
+             study_status: 'Non_Active',
+             // ✅ FIX: Dùng chuỗi rỗng '' thay vì undefined để đảm bảo field được override
+             building_id: '',
+             room_id: ''
+           }));
+           
+           if (isEdit) {
+             toast.error("Điểm rèn luyện dưới 70. Hệ thống buộc chuyển trạng thái Non Active và xóa khỏi phòng.", {
+               duration: 5000,
+               icon: '⚠️'
+             });
+           }
        }
     }
-  }, [isExpelled, formData.study_status, isEdit]);
+  }, [isExpelled, formData.study_status, formData.building_id, formData.room_id, isEdit]);
 
   const parseAddressField = (value: string): Address[] =>
     value ? value.split(';').map((item) => {
@@ -303,12 +307,28 @@ const SharedStudentForm: React.FC<Props> = ({ student, mode, onSubmit }) => {
       const parts = fullname.trim().split(/\s+/);
       const last_name = parts.length ? parts[parts.length - 1] : '';
       const first_name = parts.length > 1 ? parts.slice(0, -1).join(' ') : '';
+      
+      // ✅ FIX 2: Ép buộc ghi đè lại nếu bị đuổi (Phòng hờ trường hợp useEffect chưa kịp chạy hoặc UI bị lỗi)
+      const finalBuildingId = isExpelled ? '' : (formData.building_id || '');
+      const finalRoomId = isExpelled ? '' : (formData.room_id || '');
+      const finalStatus = isExpelled ? 'Non_Active' : formData.study_status;
+
       const payload: Student = {
-        ...formData, first_name, last_name, cccd: (formData as any).cccd || '',
+        ...formData, 
+        first_name, 
+        last_name, 
+        cccd: (formData as any).cccd || '',
         birthday: formData.birthday ? new Date(formData.birthday).toISOString().split('T')[0] : '',
-        emails: formData.emails || '', phone_numbers: formData.phone_numbers || '',
-        addresses: formData.addresses || '', has_health_insurance: !!(formData as any).has_health_insurance,
+        emails: formData.emails || '', 
+        phone_numbers: formData.phone_numbers || '',
+        addresses: formData.addresses || '', 
+        has_health_insurance: !!(formData as any).has_health_insurance,
+        // Sử dụng giá trị đã ép buộc
+        building_id: finalBuildingId,
+        room_id: finalRoomId,
+        study_status: finalStatus
       } as Student;
+
       if (onSubmit) { await onSubmit(payload); navigate(`/students/view/${payload.ssn}`); }
       else { await updateStudent(payload.ssn, payload); toast.success('Student updated successfully!'); navigate(`/students/view/${payload.ssn}`); }
       setFormError(null);
@@ -339,7 +359,7 @@ const SharedStudentForm: React.FC<Props> = ({ student, mode, onSubmit }) => {
         </div>
       )}
       
-      {disciplines.length > 0 && (
+      {(
         <div className={`col-span-full mb-6 rounded-lg border p-4 shadow-sm transition-all ${alertLevel === 'danger' ? 'border-red-300 bg-red-50' : alertLevel === 'warning' ? 'border-orange-300 bg-orange-50' : 'border-green-200 bg-green-50'}`}>
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
@@ -375,11 +395,11 @@ const SharedStudentForm: React.FC<Props> = ({ student, mode, onSubmit }) => {
           options={[{ label: 'Active', value: 'Active' }, { label: 'Non Active', value: 'Non_Active' }]} 
           isEditing={isEdit && !isExpelled} 
           
-          // ✅ SỬA: Set thành chuỗi rỗng '' thay vì null/undefined để tương thích với input value
           onChange={(v) => {
             setFormData(prev => ({
               ...prev,
               study_status: v,
+              // ✅ Đảm bảo set thành chuỗi rỗng '' khi chọn Non_Active
               ...(v === 'Non_Active' ? { building_id: '', room_id: '' } : {})
             }));
             
@@ -395,27 +415,44 @@ const SharedStudentForm: React.FC<Props> = ({ student, mode, onSubmit }) => {
       </div>
 
       {/* --- BUILDING & ROOM SECTION --- */}
-      {/* Chỉ hiển thị khi Active và có thông tin phòng */}
       {(isView || (formData.study_status === 'Active' && formData.building_id)) && (
-        <div className="col-span-full mt-2 rounded-xl border border-blue-200 bg-blue-50 p-4 shadow-sm md:col-span-2">
-          <div className="grid grid-cols-2 gap-6">
-            <div className="flex flex-col">
-              <span className="mb-1 text-xs font-medium uppercase tracking-wider text-blue-500">Building</span>
-              <div className="flex items-center gap-2 text-xl font-bold text-blue-900 md:text-2xl">
-                <Building className="h-6 w-6 text-blue-400" />
-                {formData.building_id || 'N/A'}
-              </div>
-            </div>
-            <div className="flex flex-col">
-              <span className="mb-1 text-xs font-medium uppercase tracking-wider text-blue-500">Room</span>
-              <div className="flex items-center gap-2 text-xl font-bold text-blue-900 md:text-2xl">
-                <DoorOpen className="h-6 w-6 text-blue-400" />
-                {formData.room_id || 'N/A'}
-              </div>
-            </div>
-          </div>
+  <div className="col-span-full mt-2 rounded-xl border border-blue-200 bg-blue-50 p-4 shadow-sm md:col-span-2">
+    <div className="grid grid-cols-2 gap-6">
+      
+      <div className="flex flex-col">
+        <span className="mb-1 text-xs font-medium uppercase tracking-wider text-blue-500">Building</span>
+        <div className="flex items-center gap-2 text-xl font-bold text-blue-900 md:text-2xl">
+          <Building className="h-6 w-6 text-blue-400" />
+          {formData.building_id || 'N/A'}
         </div>
-      )}
+      </div>
+
+      <div 
+        className={cn(
+          "flex flex-col transition-all rounded-md p-1 -ml-1", 
+          (isView && formData.building_id && formData.room_id) 
+            ? "cursor-pointer hover:bg-blue-100 hover:shadow-sm group relative" 
+            : ""
+        )}
+        onClick={() => {
+          if (isView && formData.building_id && formData.room_id) {
+             navigate(`/rooms/view/${formData.building_id}/${formData.room_id}`);
+          }
+        }}
+        title={isView ? "Click để xem chi tiết phòng" : ""}
+      >
+        <span className="mb-1 text-xs font-medium uppercase tracking-wider text-blue-500 group-hover:text-blue-700">
+            Room {(isView && formData.room_id) && <span className="ml-1 text-[10px] lowercase italic">(click to view)</span>}
+        </span>
+        <div className="flex items-center gap-2 text-xl font-bold text-blue-900 md:text-2xl group-hover:text-blue-700">
+          <DoorOpen className="h-6 w-6 text-blue-400 group-hover:text-blue-600" />
+          {formData.room_id || 'N/A'}
+        </div>
+      </div>
+
+    </div>
+  </div>
+)}
 
       <InputAddress label='Addresses' values={parseAddressField(formData.addresses || '')} isEditing={isEdit} provinceOptions={provinceOptions} wardOptions={wardOptions} selectedProvinceCode={selectedProvinceCode} onChange={(i, f, v) => handleAddressChange(i, f, v, 'addresses')} onAdd={() => handleAddAddress('addresses')} onRemove={(i) => handleRemoveAddress('addresses', i)} onBlur={() => handleBlur('addresses')} error={fieldErrors.addresses} />
       <EditForm label='Emails' values={parseListField(formData.emails || '')} isEditing={isEdit} onChange={(i, v) => handleListChange('emails', i, v)} onAdd={() => handleAddToList('emails')} onRemove={(i) => handleRemoveFromList('emails', i)} onBlur={() => handleBlur('emails')} error={fieldErrors.emails} />
