@@ -7,7 +7,6 @@ export const DISCIPLINE_FORMS = [
   "Yard Cleaning",
   "Classroom Setup",
   "Hall Monitoring",
-  "Expulsion",
 ] as const;
 
 export const SEVERITY_OPTIONS = [
@@ -36,7 +35,7 @@ export const STATUS_ERROR_MESSAGE =
 export const REASON_ERROR_MESSAGE =
   "Lý do không hợp lệ. Vui lòng nhập lý do rõ ràng và hợp lý.";
 export const DECISION_DATE_ERROR_MESSAGE =
-  "Ngày quyết định không hợp lệ. Ngày quyết định phải lớn hơn hoặc bằng ngày hiện tại.";
+  "Ngày quyết định không hợp lệ. Ngày quyết định không được là ngày trong tương lai.";
 export const EFFECTIVE_FROM_ERROR_MESSAGE =
   "Ngày bắt đầu có hiệu lực phải nhỏ hơn ngày kết thúc có hiệu lực.";
 export const EFFECTIVE_TO_ERROR_MESSAGE =

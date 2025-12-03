@@ -38,15 +38,11 @@ const DisciplineFilter: FC<Props> = ({
       <div className="flex flex-wrap items-center gap-3">
 
         {/* Button: Bộ lọc */}
-        <button
-          className="flex items-center gap-2 rounded-full border border-red-500 px-4 py-2 text-red-500 hover:bg-red-50"
-          onClick={() =>
-            setOpenFilter(openFilter === 'main' ? null : 'main')
-          }
+                <div 
+          className='flex items-center gap-2 rounded-full border border-red-500 px-4 py-2 text-red-500'
         >
           <SlidersHorizontal size={18} />
-          Filter
-        </button>
+        </div>
 
         {/* FORM (Action Type) */}
         <div className="relative">

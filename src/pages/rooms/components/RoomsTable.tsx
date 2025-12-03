@@ -54,8 +54,7 @@ const RoomsTable: FC<Props> = ({
   const getProgressColor = (rate: number, current: number, max: number) => {
     if (current === 0) return 'bg-gray-300';
     if (current >= max) return 'bg-red-500';
-    if (rate >= 80) return 'bg-yellow-500';
-    if (rate <= 30) return 'bg-orange-400';
+    if (rate >= 60) return 'bg-yellow-500';
     return 'bg-green-500';
   };
 
@@ -117,7 +116,7 @@ const RoomsTable: FC<Props> = ({
           {/* --- Gender (Filter - DropdownMenu) --- */}
           <TableHead>
             <div className="flex items-center gap-1">
-              <span className="cursor-pointer hover:text-gray-900" onClick={() => onSort('gender')}>Gender</span>
+              <span>Gender</span>
               
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>

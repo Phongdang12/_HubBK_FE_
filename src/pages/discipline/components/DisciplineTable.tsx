@@ -1,6 +1,6 @@
-// fileName: DisciplineTable.tsx
 import { FC, useState } from "react";
 import { Discipline, deleteDiscipline } from "@/services/disciplineService";
+import { StudentOption } from "@/services/studentService";
 import {
   Table,
   TableBody,
@@ -19,12 +19,10 @@ import {
   SelectItem,
   SelectTrigger,
 } from '@/components/ui/select';
-// Import Icons
-import { ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { ArrowUpDown, ArrowUp, ArrowDown, ExternalLink } from "lucide-react";
 
-// Định nghĩa kiểu SortConfig
 export type SortConfig = {
-  key: keyof Discipline | 'student_id' | null; // Thêm student_id vào type nếu keyof Discipline chưa đủ
+  key: keyof Discipline | 'student_id' | null;
   direction: 'asc' | 'desc';
 };
 
@@ -38,6 +36,7 @@ interface Props {
   setSelectedSeverity: (val: string) => void;
   sortConfig: SortConfig;
   onSort: (key: keyof Discipline | 'student_id') => void;
+  studentList: StudentOption[]; 
 }
 
 const DisciplineTable: FC<Props> = ({
@@ -50,6 +49,7 @@ const DisciplineTable: FC<Props> = ({
   setSelectedSeverity,
   sortConfig,
   onSort,
+  studentList,
 }) => {
   const [selected, setSelected] = useState<Discipline | null>(null);
   const [openDelete, setOpenDelete] = useState(false);
@@ -76,6 +76,26 @@ const DisciplineTable: FC<Props> = ({
     setOpenDelete(false);
   };
 
+  // Helper tìm SSN từ StudentID (MSSV) để điều hướng
+  const getSsnFromStudentId = (studentId: string) => {
+    if (!studentList) return null;
+    const found = studentList.find(s => s.student_id === studentId);
+    return (found as any)?.sssn || (found as any)?.ssn || null;
+  };
+
+  // Xử lý click chuyển trang
+  const handleViewStudent = (e: React.MouseEvent, studentId: string) => {
+    e.stopPropagation();
+    if (!studentId) return;
+    
+    const ssn = getSsnFromStudentId(studentId);
+    if (ssn) {
+      navigate(`/students/view/${ssn}`);
+    } else {
+      toast.error(`Không tìm thấy hồ sơ sinh viên: ${studentId}`);
+    }
+  };
+
   const statusOptions = [
     { value: 'all', label: 'All' },
     { value: 'pending', label: 'Pending' },
@@ -98,24 +118,11 @@ const DisciplineTable: FC<Props> = ({
     const parts = text.split(regex);
     return parts.map((part, index) =>
       part.toLowerCase() === globalQuery.toLowerCase() ? (
-        <span
-          key={index}
-          style={{
-            backgroundColor: '#FFE066',
-            fontWeight: 600,
-            padding: '2px 4px',
-            borderRadius: '4px',
-          }}
-        >
-          {part}
-        </span>
-      ) : (
-        part
-      )
+        <span key={index} style={{ backgroundColor: '#FFE066', fontWeight: 600, padding: '2px 4px', borderRadius: '4px' }}>{part}</span>
+      ) : part
     );
   };
 
-  // 🆕 HELPER: Render nút sort header (Tái sử dụng cho ActionID và StudentID)
   const renderSortableHeader = (label: string, key: keyof Discipline | 'student_id') => (
     <Button
       variant="ghost"
@@ -124,14 +131,8 @@ const DisciplineTable: FC<Props> = ({
     >
       {label}
       {sortConfig.key === key ? (
-        sortConfig.direction === 'asc' ? (
-          <ArrowUp className="h-4 w-4" />
-        ) : (
-          <ArrowDown className="h-4 w-4" />
-        )
-      ) : (
-        <ArrowUpDown className="h-4 w-4 opacity-50" />
-      )}
+        sortConfig.direction === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />
+      ) : <ArrowUpDown className="h-4 w-4 opacity-50" />}
     </Button>
   );
 
@@ -140,57 +141,26 @@ const DisciplineTable: FC<Props> = ({
       <Table>
         <TableHeader className="bg-gray-100">
           <TableRow>
+            <TableHead className="text-center font-semibold p-0 w-[140px]">{renderSortableHeader('Action ID', 'action_id')}</TableHead>
+            <TableHead className="text-center font-semibold p-0 w-[140px]">{renderSortableHeader('Student ID', 'student_id')}</TableHead>
+            <TableHead className="text-center font-semibold p-0 w-[140px]">{renderSortableHeader('Form', 'action_type')}</TableHead>
             
-            {/* 🆕 CỘT ACTION ID (Có Sort) */}
-            <TableHead className="text-center font-semibold p-0 w-[140px]">
-              {renderSortableHeader('Action ID', 'action_id')}
-            </TableHead>
-
-            {/* 🆕 CỘT STUDENT ID (Có Sort) */}
-            <TableHead className="text-center font-semibold p-0 w-[140px]">
-              {renderSortableHeader('Student ID', 'student_id')}
-            </TableHead>
-
-            <TableHead className="text-center font-semibold p-0 w-[140px]">
-              {renderSortableHeader('Form', 'action_type')}
-            </TableHead>
-
-            {/* SEVERITY FILTER */}
             <TableHead className="font-semibold px-2">
               <div className="flex items-center justify-center">
                 <span className="mr-1">Severity</span>
-                <Select
-                  value={selectedSeverity}
-                  onValueChange={(value) => setSelectedSeverity(value)}
-                >
+                <Select value={selectedSeverity} onValueChange={(value) => setSelectedSeverity(value)}>
                   <SelectTrigger className="h-8 w-8 border-none bg-transparent shadow-none" />
-                  <SelectContent>
-                    {severityOptions.map((opt) => (
-                      <SelectItem key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
+                  <SelectContent>{severityOptions.map((opt) => <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
             </TableHead>
 
-            {/* STATUS FILTER */}
             <TableHead className="font-semibold px-2">
               <div className="flex items-center justify-center">
                 <span className="mr-1">Status</span>
-                <Select
-                  value={selectedStatus}
-                  onValueChange={(value) => setSelectedStatus(value)}
-                >
+                <Select value={selectedStatus} onValueChange={(value) => setSelectedStatus(value)}>
                   <SelectTrigger className="h-8 w-8 border-none bg-transparent shadow-none" />
-                  <SelectContent>
-                    {statusOptions.map((opt) => (
-                      <SelectItem key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
+                  <SelectContent>{statusOptions.map((opt) => <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
             </TableHead>
@@ -202,56 +172,33 @@ const DisciplineTable: FC<Props> = ({
 
         <TableBody>
           {disciplines.length === 0 ? (
-            <TableRow>
-              <TableCell colSpan={7} className="py-6 text-center text-gray-500">
-                No data
-              </TableCell>
-            </TableRow>
+            <TableRow><TableCell colSpan={7} className="py-6 text-center text-gray-500">No data</TableCell></TableRow>
           ) : (
             disciplines.map((d) => (
               <TableRow key={d.action_id} className="hover:bg-gray-50 transition">
+                <TableCell className="text-center">{highlightText(d.action_id)}</TableCell>
+
+                {/* 🔥 CỘT STUDENT ID: ĐƠN GIẢN HÓA, CHỈ CLICK LINK */}
                 <TableCell className="text-center">
-                  {highlightText(d.action_id)}
+                  <div 
+                    className="flex items-center justify-center gap-1 text-blue-600 hover:text-blue-800 hover:underline cursor-pointer font-medium group"
+                    onClick={(e) => handleViewStudent(e, d.student_id)}
+                    title="Bấm để xem chi tiết sinh viên"
+                  >
+                    {highlightText(d.student_id || '-')}
+                    <ExternalLink className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </div>
                 </TableCell>
 
-                <TableCell className="text-center">
-                  {/* Fallback hiển thị sssn nếu không có student_id */}
-                  {highlightText(d.student_id || '-')} 
-                </TableCell>
-
-                <TableCell className="text-center">
-                  {highlightText(d.action_type)}
-                </TableCell>
-
-                <TableCell className="text-center">
-                  {highlightText(d.severity_level)}
-                </TableCell>
-
-                <TableCell className="text-center">
-                  {highlightText(d.status)}
-                </TableCell>
-
-                <TableCell className="text-center">
-                  {d.decision_date}
-                </TableCell>
+                <TableCell className="text-center">{highlightText(d.action_type)}</TableCell>
+                <TableCell className="text-center">{highlightText(d.severity_level)}</TableCell>
+                <TableCell className="text-center">{highlightText(d.status)}</TableCell>
+                <TableCell className="text-center">{d.decision_date}</TableCell>
 
                 <TableCell>
                   <div className="flex justify-center gap-2">
-                    <Button
-                      size="sm"
-                      style={{ backgroundColor: '#1488DB', color: 'white' }}
-                      onClick={() => handleView(d)}
-                    >
-                      View
-                    </Button>
-
-                    <Button
-                      size="sm"
-                      style={{ backgroundColor: '#e53935', color: 'white' }}
-                      onClick={() => handleDelete(d)}
-                    >
-                      Delete
-                    </Button>
+                    <Button size="sm" style={{ backgroundColor: '#1488DB', color: 'white' }} onClick={() => handleView(d)}>View</Button>
+                    <Button size="sm" style={{ backgroundColor: '#e53935', color: 'white' }} onClick={() => handleDelete(d)}>Delete</Button>
                   </div>
                 </TableCell>
               </TableRow>
@@ -261,11 +208,8 @@ const DisciplineTable: FC<Props> = ({
       </Table>
 
       <ConfirmDialog
-        open={openDelete}
-        onOpenChange={setOpenDelete}
-        title="Confirm deletion"
-        onConfirm={confirmDelete}
-        message={<>Delete Discipline with Action ID: <b>{selected?.action_id}</b> ?</>}
+        open={openDelete} onOpenChange={setOpenDelete} title="Confirm deletion"
+        onConfirm={confirmDelete} message={<>Delete Discipline with Action ID: <b>{selected?.action_id}</b> ?</>}
       />
     </div>
   );
