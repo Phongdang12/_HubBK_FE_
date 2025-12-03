@@ -26,7 +26,7 @@ const KPICard = ({
   progress,
 }: KPICardProps) => {
   return (
-    <div className='rounded-lg bg-white p-6 shadow-sm transition-shadow hover:shadow-md'>
+    <div className='flex h-full flex-col rounded-lg bg-white p-6 shadow-sm transition-shadow hover:shadow-md'>
       <div className='flex items-start justify-between'>
         <div className='flex-1'>
           <p className='text-sm font-medium uppercase tracking-wide text-gray-500'>

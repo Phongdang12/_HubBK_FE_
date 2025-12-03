@@ -45,6 +45,7 @@ interface StatisticsQueryParams {
   from?: string;
   to?: string;
   buildingId?: string;
+  period?: string;
 }
 
 // Main statistics API calls

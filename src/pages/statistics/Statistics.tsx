@@ -43,6 +43,45 @@ const Statistics = () => {
   const [endDate, setEndDate] = useState(defaultDates.end);
   const [buildingId, setBuildingId] = useState<string>('');
   const [validationError, setValidationError] = useState<string>('');
+  const [violationPeriod, setViolationPeriod] = useState<string>('all');
+
+  const handleViolationPeriodChange = (value: string) => {
+    setViolationPeriod(value);
+
+    // Không tự chỉnh date nếu chọn all/custom
+    if (value === 'all' || value === 'custom') return;
+
+    const now = new Date();
+    const toStr = now.toISOString().split('T')[0];
+    let fromDate = new Date(now);
+
+    switch (value) {
+      case '1week':
+        fromDate.setDate(now.getDate() - 7);
+        break;
+      case '3weeks':
+        fromDate.setDate(now.getDate() - 21);
+        break;
+      case '1month':
+        fromDate = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
+        break;
+      case '3months':
+        fromDate = new Date(now.getFullYear(), now.getMonth() - 3, now.getDate());
+        break;
+      case '6months':
+        fromDate = new Date(now.getFullYear(), now.getMonth() - 6, now.getDate());
+        break;
+      case '1year':
+        fromDate = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
+        break;
+      default:
+        return;
+    }
+
+    const fromStr = fromDate.toISOString().split('T')[0];
+    setStartDate(fromStr);
+    setEndDate(toStr);
+  };
 
   // Statistics data
   const [overview, setOverview] = useState<any>(null);
@@ -148,14 +187,17 @@ const Statistics = () => {
         from = fromDate.toISOString().split('T')[0];
       }
 
-      // Build query params with building filter
-      const queryParams: { from?: string; to?: string; buildingId?: string } = {
+      // Build base query params with building filter
+      const baseParams: { from?: string; to?: string; buildingId?: string } = {
         from,
         to,
       };
-      if (buildingId) {
-        queryParams.buildingId = buildingId;
-      }
+      if (buildingId) baseParams.buildingId = buildingId;
+
+      const trendParams = {
+        ...baseParams,
+        period: violationPeriod,
+      };
 
       // Fetch all statistics in parallel
       const [
@@ -165,11 +207,11 @@ const Statistics = () => {
         severityData,
         trendData,
       ] = await Promise.all([
-        getStatisticsOverview(queryParams),
-        getFacultyDistribution(queryParams),
-        getOccupancyByBuilding(queryParams),
-        getDisciplineSeverity(queryParams),
-        getViolationsTrend(queryParams),
+        getStatisticsOverview(baseParams),
+        getFacultyDistribution(baseParams),
+        getOccupancyByBuilding(baseParams),
+        getDisciplineSeverity(baseParams),
+        getViolationsTrend(trendParams),
       ]);
 
       setOverview(overviewData);
@@ -202,7 +244,7 @@ const Statistics = () => {
     }, 300);
 
     return () => clearTimeout(timer);
-  }, [startDate, endDate, buildingId]);
+  }, [startDate, endDate, buildingId, violationPeriod]);
 
   // Drill-down handlers
   const handleFacultyClick = (faculty: string) => {
@@ -394,7 +436,7 @@ const Statistics = () => {
                 <div className='mb-6 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4'>
                   <div
                     onClick={() => handleKPIClick('occupancy')}
-                    className='cursor-pointer transition-transform hover:scale-105'
+                    className='h-full cursor-pointer transition-transform hover:scale-105'
                   >
                     <KPICard
                       title='Occupancy Rate'
@@ -410,7 +452,7 @@ const Statistics = () => {
                   </div>
                   <div
                     onClick={() => handleKPIClick('students')}
-                    className='cursor-pointer transition-transform hover:scale-105'
+                    className='h-full cursor-pointer transition-transform hover:scale-105'
                   >
                     <KPICard
                       title='Total Students'
@@ -422,7 +464,7 @@ const Statistics = () => {
                   </div>
                   <div
                     onClick={() => handleKPIClick('rooms')}
-                    className='cursor-pointer transition-transform hover:scale-105'
+                    className='h-full cursor-pointer transition-transform hover:scale-105'
                   >
                     <KPICard
                       title='Available Rooms'
@@ -434,7 +476,7 @@ const Statistics = () => {
                   </div>
                   <div
                     onClick={() => handleKPIClick('discipline')}
-                    className='cursor-pointer transition-transform hover:scale-105'
+                    className='h-full cursor-pointer transition-transform hover:scale-105'
                   >
                     <KPICard
                       title='Pending Discipline'
@@ -483,6 +525,22 @@ const Statistics = () => {
                     title='Monthly Violation Trend'
                     subtext='Check if violations spike during exam periods or specific months'
                   >
+                    <div className='mb-3 flex justify-end'>
+                      <select
+                        value={violationPeriod}
+                        onChange={(e) => handleViolationPeriodChange(e.target.value)}
+                        className='rounded-md border border-gray-300 bg-white px-3 py-1 text-xs md:text-sm text-gray-700 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/40'
+                      >
+                        <option value='1week'>1 tuần gần nhất</option>
+                        <option value='3weeks'>3 tuần gần nhất</option>
+                        <option value='1month'>1 tháng gần nhất</option>
+                        <option value='3months'>3 tháng gần nhất</option>
+                        <option value='6months'>6 tháng gần nhất</option>
+                        <option value='1year'>1 năm gần nhất</option>
+                        <option value='all'>Tất cả thời gian</option>
+                      </select>
+                    </div>
+
                     <ViolationsOverTimeChart
                       data={violationsTrend}
                       onMonthClick={handleMonthClick}
