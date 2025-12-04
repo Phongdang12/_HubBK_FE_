@@ -95,14 +95,17 @@ const StudentFilter: FC<Props> = ({
           {openFilter === 'faculty' && (
             <div className='absolute z-20 mt-2 w-60 rounded-md border bg-white shadow-md max-h-60 overflow-auto'>
               {[
-                'Information Technology',
-                'Mechanical Engineering',
-                'Computer Science',
-                'Electronics and Telecommunications Engineering',
-                'Civil Engineering',
-                'Electrical Engineering',
-                'Information Security',
-                'Logistics and Supply Chain Management'
+                'Applied Sciences',
+  'Chemical Engineering',
+  'Civil Engineering',
+  'Computer Science and Engineering',
+  'Electrical and Electronic Engineering',
+  'Environment and Natural Resources',
+  'Geological and Petroleum Engineering',
+  'Industrial Management',
+  'Materials Technology',
+  'Mechanical Engineering',
+  'Transportation Engineering'
               ].map((f) => (
                 <div
                   key={f}

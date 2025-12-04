@@ -229,3 +229,36 @@ export const getStudentsWithoutRoom = async (): Promise<StudentOption[]> => {
   });
   return res.data as StudentOption[];
 };
+export const checkStudentExistence = async (
+  field: 'student_id' | 'cccd' | 'guardian_cccd', // ✅ Đã thêm 'guardian_cccd' vào Type
+  value: string
+): Promise<boolean> => {
+  // 1. Lấy token
+  const token = localStorage.getItem('accessToken'); 
+
+  // 2. Tạo URL
+  const params = new URLSearchParams({ field, value });
+  
+  try {
+    const response = await fetch(`/api/students/check-existence?${params.toString()}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}` 
+      }
+    });
+
+    if (response.status === 401) {
+      console.error('Lỗi xác thực: Hết phiên đăng nhập');
+      return false;
+    }
+
+    if (!response.ok) return false;
+    
+    const data = await response.json();
+    return data.exists;
+  } catch (error) {
+    console.error(error);
+    return false;
+  }
+};

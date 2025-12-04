@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { Discipline, getAllDisciplines } from "@/services/disciplineService";
-import { getStudentOptions, StudentOption } from "@/services/studentService"; // 1. Import Service Sinh viên
+import { getStudentOptions, StudentOption } from "@/services/studentService"; 
 import { SortConfig } from "./components/DisciplineTable";
 import Sidebar from "@/components/layout/Sidebar";
 import Header from "@/components/layout/Header";
@@ -12,6 +12,8 @@ import { Button } from "@/components/ui/button";
 import DisciplineFilter from "./components/DisciplineFilter";
 import DisciplineTable from "./components/DisciplineTable";
 import { Toaster } from "react-hot-toast";
+import { Loader2 } from 'lucide-react';
+import { TableSkeleton } from '@/components/layout/TableSkeleton';
 
 const LIMIT = 8;
 
@@ -20,10 +22,12 @@ const DisciplinesPage: React.FC = () => {
 
   // ========== DATA ==========
   const [disciplines, setDisciplines] = useState<Discipline[]>([]);
-  const [studentsMap, setStudentsMap] = useState<StudentOption[]>([]); // 2. State lưu danh sách SV để map ID
+  const [studentsMap, setStudentsMap] = useState<StudentOption[]>([]); 
   const [loading, setLoading] = useState(true);
+  // 👇 [MỚI] State để quản lý hiệu ứng loading khi filter client-side
+  const [isFiltering, setIsFiltering] = useState(false);
 
-  // ... (Các state search/filter/pagination giữ nguyên) ...
+  // ... (Các state search/filter/pagination) ...
   const [globalQuery, setGlobalQuery] = useState("");
   const [formFilter, setFormFilter] = useState("");
   const [severityFilter, setSeverityFilter] = useState("");
@@ -42,18 +46,22 @@ const DisciplinesPage: React.FC = () => {
     }));
   };
 
-  // ========== FETCH ALL ==========
+  // Hàm delay giả lập
+  const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+  // ========== FETCH ALL (Initial Load) ==========
   const fetchData = async () => {
     try {
       setLoading(true);
-      // 3. Gọi song song cả API Kỷ luật và API Danh sách SV (Options)
+      await wait(500); // Delay lần đầu
+
       const [disciplineData, studentData] = await Promise.all([
         getAllDisciplines(),
         getStudentOptions()
       ]);
 
       setDisciplines(disciplineData || []);
-      setStudentsMap(studentData || []); // Lưu map SV
+      setStudentsMap(studentData || []); 
     } catch (error) {
       console.error("Failed to fetch data:", error);
       setDisciplines([]);
@@ -66,7 +74,17 @@ const DisciplinesPage: React.FC = () => {
     fetchData();
   }, []);
 
-  // ... (Logic Filter/Sort/Pagination giữ nguyên không đổi) ...
+  // 👇 [MỚI] Effect kích hoạt Dimming khi filter thay đổi
+  useEffect(() => {
+    // Chỉ chạy khi đã có dữ liệu (tránh conflict với initial load)
+    if (disciplines.length > 0) {
+      setIsFiltering(true);
+      const timer = setTimeout(() => setIsFiltering(false), 500); // Mờ trong 0.5s
+      return () => clearTimeout(timer);
+    }
+  }, [globalQuery, formFilter, severityFilter, statusFilter]);
+
+  // Reset trang về 1 khi filter
   useEffect(() => { setPage(1); }, [globalQuery, formFilter, severityFilter, statusFilter]);
 
   const filteredDisciplines = useMemo(() => {
@@ -102,6 +120,10 @@ const DisciplinesPage: React.FC = () => {
     setDisciplines((prev) => prev.filter((d) => d.action_id !== action_id));
   };
 
+  // 👇 Helper UX (Kết hợp cả Loading thật và Filtering giả)
+  const isInitialLoading = loading && disciplines.length === 0;
+  const isRefetching = (loading || isFiltering) && disciplines.length > 0;
+
   return (
     <div className="flex min-h-screen w-full flex-col">
       <Header />
@@ -130,34 +152,47 @@ const DisciplinesPage: React.FC = () => {
                 />
               </div>
 
-              {/* Table */}
-              <div className="mx-6 rounded-md border">
-                {loading ? (
-                  <div className="p-8 text-center text-gray-500">Loading disciplines...</div>
+              {/* Table Area */}
+              <div className="mx-6 rounded-md border relative min-h-[300px]">
+                
+                {/* CASE 1: INITIAL LOADING (SKELETON) */}
+                {isInitialLoading ? (
+                  <div className="p-4">
+                    <TableSkeleton />
+                  </div>
                 ) : (
                   <>
-                    <DisciplineTable
-                      disciplines={displayedDisciplines}
-                      onDeleteLocal={handleDeleteLocal}
-                      globalQuery={globalQuery}
-                      selectedStatus={statusFilter}
-                      setSelectedStatus={setStatusFilter}
-                      selectedSeverity={severityFilter}
-                      setSelectedSeverity={setSeverityFilter}
-                      sortConfig={sortConfig}
-                      onSort={handleSort}
-                      // 4. Truyền map sinh viên xuống table
-                      studentList={studentsMap} 
-                    />
-
-                    {/* Pagination UI giữ nguyên */}
-                    {(filteredDisciplines.length > LIMIT) && (
-                      <div className="mt-4 flex items-center justify-center space-x-2">
-                        <button onClick={() => setPage((p) => Math.max(p - 1, 1))} disabled={page === 1} className="rounded border px-3 py-1 disabled:opacity-50">Prev</button>
-                        <span>Page {page} / {totalPages}</span>
-                        <button onClick={() => setPage((p) => Math.min(p + 1, totalPages))} disabled={page === totalPages} className="rounded border px-3 py-1 disabled:opacity-50">Next</button>
+                    {/* CASE 2: REFETCHING / FILTERING (DIMMING) */}
+                    {isRefetching && (
+                      <div className="absolute inset-0 z-10 bg-white/50 flex items-center justify-center backdrop-blur-[1px] transition-all duration-200">
+                        <div className="bg-white p-2 rounded-full shadow-lg">
+                          <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
+                        </div>
                       </div>
                     )}
+
+                    <div className={isRefetching ? "opacity-40 transition-opacity duration-200" : "transition-opacity duration-200"}>
+                      <DisciplineTable
+                        disciplines={displayedDisciplines}
+                        onDeleteLocal={handleDeleteLocal}
+                        globalQuery={globalQuery}
+                        selectedStatus={statusFilter}
+                        setSelectedStatus={setStatusFilter}
+                        selectedSeverity={severityFilter}
+                        setSelectedSeverity={setSeverityFilter}
+                        sortConfig={sortConfig}
+                        onSort={handleSort}
+                        studentList={studentsMap} 
+                      />
+
+                      {(filteredDisciplines.length > LIMIT) && (
+                        <div className="mt-4 flex items-center justify-center space-x-2 pb-4">
+                          <button onClick={() => setPage((p) => Math.max(p - 1, 1))} disabled={page === 1} className="rounded border px-3 py-1 disabled:opacity-50 hover:bg-gray-50">Prev</button>
+                          <span className="text-sm font-medium">Page {page} / {totalPages}</span>
+                          <button onClick={() => setPage((p) => Math.min(p + 1, totalPages))} disabled={page === totalPages} className="rounded border px-3 py-1 disabled:opacity-50 hover:bg-gray-50">Next</button>
+                        </div>
+                      )}
+                    </div>
                   </>
                 )}
               </div>

@@ -6,6 +6,9 @@ import Header from '@/components/layout/Header';
 import Sidebar from '@/components/layout/Sidebar';
 import Footer from '@/components/layout/Footer';
 import { toast } from 'react-hot-toast';
+// 👇 1. Import mới
+import { Loader2 } from 'lucide-react';
+import { TableSkeleton } from '@/components/layout/TableSkeleton';
 
 export type SortField = 'room_id' | 'gender' | 'occupancy';
 
@@ -16,7 +19,7 @@ const Rooms = () => {
   // --- State Bộ lọc ---
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedBuilding, setSelectedBuilding] = useState('all');
-  const [selectedGender, setSelectedGender] = useState('all'); // ✅ Mới
+  const [selectedGender, setSelectedGender] = useState('all');
   const [activeSmartFilter, setActiveSmartFilter] = useState<SmartFilterType>('all');
 
   // --- State Sort ---
@@ -25,11 +28,12 @@ const Rooms = () => {
 
   const [page, setPage] = useState(1);
   const [limit] = useState(8);
-
+  const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
   useEffect(() => {
     const fetchRooms = async () => {
       try {
         setLoading(true);
+        await wait(300);
         const data = await getAllRooms();
         setRooms(data);
       } catch (error) {
@@ -57,28 +61,20 @@ const Rooms = () => {
 
   // --- LOGIC LỌC & SORT ---
   const processedRooms = useMemo(() => {
-    // 1. Lọc
     let result = rooms.filter((room) => {
-      // Search Text
       const matchesSearch = room.room_id.toLowerCase().includes(searchQuery.toLowerCase());
-      
-      // Filter Building
       const matchesBuilding = selectedBuilding === 'all' || room.building_id === selectedBuilding;
 
-      // ✅ Filter Gender (Mới)
       let matchesGender = true;
       if (selectedGender !== 'all') {
         if (selectedGender === 'empty') {
-          // Phòng trống = room_gender null hoặc undefined
           matchesGender = !room.room_gender;
         } else {
-          // So sánh M hoặc F
           const g = room.room_gender?.toUpperCase();
           matchesGender = !!g && g.startsWith(selectedGender);
         }
       }
 
-      // Filter Smart
       let matchesSmartFilter = true;
       const occupancy = Number(room.occupancy_rate);
       switch (activeSmartFilter) {
@@ -92,7 +88,6 @@ const Rooms = () => {
       return matchesSearch && matchesBuilding && matchesSmartFilter && matchesGender;
     });
 
-    // 2. Sort
     result.sort((a, b) => {
       let valA: any = '';
       let valB: any = '';
@@ -103,7 +98,6 @@ const Rooms = () => {
           valB = b.room_id || '';
           break;
         case 'gender':
-          // Quy đổi gender ra số để sort: Nam(1) -> Nữ(2) -> Trống(3)
           const getWeight = (g?: string | null) => {
              if (!g) return 3;
              if (g.toUpperCase().startsWith('M')) return 1;
@@ -117,8 +111,7 @@ const Rooms = () => {
           valA = Number(a.occupancy_rate || 0);
           valB = Number(b.occupancy_rate || 0);
           break;
-        default:
-          return 0;
+        default: return 0;
       }
 
       if (valA < valB) return sortOrder === 'asc' ? -1 : 1;
@@ -135,6 +128,10 @@ const Rooms = () => {
   useEffect(() => {
     setPage(1);
   }, [searchQuery, selectedBuilding, selectedGender, activeSmartFilter]);
+
+  // 👇 2. Helper UX
+  const isInitialLoading = loading && rooms.length === 0;
+  const isRefetching = loading && rooms.length > 0;
 
   return (
     <div className="flex min-h-screen w-full flex-col">
@@ -153,13 +150,24 @@ const Rooms = () => {
               />
             </div>
 
-            <div className="mx-6 overflow-hidden rounded-md border">
-              {loading ? (
-                <div className="text-center py-10 text-gray-500">Loading rooms...</div>
+            <div className="mx-6 overflow-hidden rounded-md border relative min-h-[400px]">
+              {/* CASE 1: INITIAL LOADING (SKELETON) */}
+              {isInitialLoading ? (
+                <div className="p-4">
+                  <TableSkeleton />
+                </div>
               ) : (
                 <>
-                  <div className="h-[500px] overflow-y-auto">
-                    {/* ✅ TRUYỀN PROPS LỌC XUỐNG TABLE */}
+                  {/* CASE 2: REFETCHING (DIMMING + SPINNER) */}
+                  {isRefetching && (
+                    <div className="absolute inset-0 z-10 bg-white/50 flex items-center justify-center backdrop-blur-[1px]">
+                      <div className="bg-white p-2 rounded-full shadow-lg">
+                        <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
+                      </div>
+                    </div>
+                  )}
+
+                  <div className={`h-[500px] overflow-y-auto transition-opacity duration-200 ${isRefetching ? "opacity-40" : ""}`}>
                     <RoomsTable 
                       rooms={paginatedRooms} 
                       sortBy={sortBy}

@@ -28,7 +28,7 @@ import {
 import { getStudentOptions, StudentOption, getStudentDetail, updateStudent, Student } from "@/services/studentService";
 
 // IMPORT ICONS
-import { Check, ChevronsUpDown, AlertTriangle, Info } from "lucide-react";
+import { Check, ChevronsUpDown, AlertTriangle, Info, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   Command,
@@ -62,6 +62,17 @@ const POINTS_MAP: Record<string, number> = {
   high: 10,
   expulsion: 31,
 };
+
+// [UX FEATURE] Danh sách gợi ý lý do nhanh
+const QUICK_REASONS = [
+  "Về muộn quá giờ quy định",
+  "Sử dụng chất kích thích (rượu/bia)",
+  "Gây mất trật tự sau 23h",
+  "Nấu ăn trong phòng",
+  "Xả rác bừa bãi",
+  "Tiếp khách trái phép",
+  "Hư hỏng tài sản công"
+];
 
 function removeAccents(str: string) {
   return str
@@ -203,6 +214,19 @@ const SharedDisciplineForm: FC<Props> = ({ initialData, mode }) => {
     clearFieldError(name as keyof Discipline);
   };
 
+  // [UX FEATURE] Hàm thêm lý do nhanh từ Chips
+  const addReason = (text: string) => {
+    setForm((prev) => {
+      const currentReason = prev.reason ? prev.reason.trim() : "";
+      // Nếu ô trống thì set luôn, nếu có chữ rồi thì thêm dấu phẩy
+      const newReason = currentReason 
+        ? `${currentReason}, ${text.toLowerCase()}` 
+        : text;
+      return { ...prev, reason: newReason };
+    });
+    clearFieldError("reason");
+  };
+
   const handleSelectStudent = (currentValue: string) => {
     setForm(prev => ({ ...prev, student_id: currentValue }));
     clearFieldError("student_id");
@@ -233,14 +257,12 @@ const SharedDisciplineForm: FC<Props> = ({ initialData, mode }) => {
     const reason = form.reason.trim();
     if (reason.length < 10 || reason.length > 500) errors.reason = REASON_ERROR_MESSAGE;
     
-    // Logic check ngày: Chỉ chặn ngày tương lai
     const parseLocalDate = (s: string): Date => {
       const [y, m, d] = s.split("-");
       return new Date(Number(y), Number(m) - 1, Number(d));
     };
 
     const decisionDate = parseLocalDate(form.decision_date);
-    // Check ngày tương lai: dùng mốc 23:59:59 hôm nay
     const endOfToday = new Date();
     endOfToday.setHours(23, 59, 59, 999);
 
@@ -297,7 +319,7 @@ const SharedDisciplineForm: FC<Props> = ({ initialData, mode }) => {
         toast.success("Thêm kỷ luật thành công!");
       }
 
-      // 🔥 AUTO-UPDATE LOGIC
+      // Auto-update logic
       const isExpelled = payload.severity_level === 'expulsion';
       const isLowScore = projectedScore !== null && projectedScore < 70;
 
@@ -310,8 +332,6 @@ const SharedDisciplineForm: FC<Props> = ({ initialData, mode }) => {
                 const studentDetail = await getStudentDetail(targetSsn);
                 
                 if (studentDetail && studentDetail.study_status === 'Active') {
-                    
-                    // 🔥 FIX CHÍNH: Format date & điền đủ dữ liệu
                     const safeDate = (d: any, fallback: string = '2000-01-01') => {
                         if (!d) return fallback;
                         try {
@@ -323,7 +343,6 @@ const SharedDisciplineForm: FC<Props> = ({ initialData, mode }) => {
                         }
                     }
 
-                    // Điền đầy đủ tất cả các trường bắt buộc để qua validation của Zod
                     const updatedStudent: Student = {
                         ...studentDetail,
                         study_status: 'Non_Active',
@@ -331,7 +350,7 @@ const SharedDisciplineForm: FC<Props> = ({ initialData, mode }) => {
                         room_id: '',
                         
                         birthday: safeDate(studentDetail.birthday),
-                        cccd: studentDetail.cccd || '000000000000', // Fallback nếu thiếu
+                        cccd: studentDetail.cccd || '000000000000',
                         first_name: studentDetail.first_name || '',
                         last_name: studentDetail.last_name || '',
                         sex: studentDetail.sex || 'M',
@@ -343,7 +362,6 @@ const SharedDisciplineForm: FC<Props> = ({ initialData, mode }) => {
                         phone_numbers: studentDetail.phone_numbers || '',
                         addresses: studentDetail.addresses || '',
                         
-                        // Thông tin người thân (cũng phải đầy đủ)
                         guardian_cccd: (studentDetail as any).guardian_cccd || '000000000000',
                         guardian_name: (studentDetail as any).guardian_name || 'N/A',
                         guardian_relationship: (studentDetail as any).guardian_relationship || 'Other',
@@ -529,9 +547,32 @@ const SharedDisciplineForm: FC<Props> = ({ initialData, mode }) => {
         </div>
       </div>
 
+      {/* [UX FEATURE] Reason với Chips gợi ý nhanh */}
       <div>
         <Label>Reason</Label>
-        <Textarea name="reason" value={form.reason} onChange={handleChange} className="min-h-[100px]" placeholder="Enter details..." />
+        <Textarea 
+          name="reason" 
+          value={form.reason} 
+          onChange={handleChange} 
+          className="min-h-[100px]" 
+          placeholder="Enter details..." 
+        />
+        
+        {/* CHIPS AREA */}
+        <div className="mt-2 flex flex-wrap gap-2 animate-in fade-in slide-in-from-top-1">
+            <span className="text-xs text-gray-500 py-1 font-medium">Gợi ý nhanh:</span>
+            {QUICK_REASONS.map(r => (
+                <button
+                    key={r}
+                    type="button"
+                    onClick={() => addReason(r)}
+                    className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-xs font-medium text-gray-600 hover:border-blue-400 hover:bg-blue-50 hover:text-blue-700 transition-all active:scale-95"
+                >
+                    <Plus className="h-3 w-3" /> {r}
+                </button>
+            ))}
+        </div>
+        
         {renderError("reason")}
       </div>
 

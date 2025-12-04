@@ -1,73 +1,96 @@
-// fileName: EditField.tsx
-import { FC, ReactNode, useRef } from 'react';
+import { FC, ReactNode } from 'react';
+import { Check, AlertCircle, Loader2 } from 'lucide-react'; // Đảm bảo đã cài: npm i lucide-react
 
-interface EditableFieldProps {
-  label: string|ReactNode;
-  value: string;
+interface EditFieldProps {
+  label: ReactNode;
+  value: string | number;
   isEditing: boolean;
-  onChange: (value: string) => void;
-  onBlur?: () => void; // ✅ Đã thêm onBlur
   type?: string;
-  icon?: ReactNode;
+  onChange?: (value: string) => void;
+  onBlur?: () => void;
   error?: string;
-  readOnly?: boolean;
-  min?: number;
+  icon?: ReactNode; // Icon tùy chỉnh (ví dụ Calendar)
+  isLoading?: boolean; // Prop mới để hiện loading
+  placeholder?: string;
+  disabled?: boolean;
 }
 
-const EditField: FC<EditableFieldProps> = ({
+const EditField: FC<EditFieldProps> = ({
   label,
   value,
   isEditing,
-  onChange,
-  onBlur, // ✅ Đã nhận onBlur
   type = 'text',
-  icon,
+  onChange,
+  onBlur,
   error,
-  readOnly = false,
-  min,
+  icon,
+  isLoading = false, // Mặc định false
+  placeholder,
+  disabled
 }) => {
-  const inputRef = useRef<HTMLInputElement>(null);
+  // Xác định trạng thái
+  const hasError = !!error;
+  const hasValue = value !== '' && value !== null && value !== undefined;
+  const isSuccess = isEditing && hasValue && !hasError && !isLoading;
 
-  const handleIconClick = () => {
-    if (inputRef.current) {
-      inputRef.current.focus();
-      if (type === 'date') {
-        inputRef.current.showPicker?.();
-      }
-    }
-  };
+  // Class động cho border và ring
+  const borderColor = hasError
+    ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20'
+    : isSuccess
+    ? 'border-green-500 focus:border-green-500 focus:ring-green-500/20'
+    : 'border-gray-300 focus:border-blue-500 focus:ring-blue-500/20';
+
+  const iconColor = hasError
+    ? 'text-red-500'
+    : isSuccess
+    ? 'text-green-500'
+    : 'text-gray-400';
 
   return (
-    <div>
-      <span className='font-semibold'>{label}:</span>
+    <div className="flex flex-col gap-1.5">
+      <span className="font-semibold text-gray-700">{label}:</span>
+      
       {isEditing ? (
-        <div className='relative w-full'>
+        <div className="relative">
           <input
-            ref={inputRef}
             type={type}
-            min={min}
-            readOnly={readOnly}
-            className={`w-full rounded-lg border border-gray-300 px-3 py-2 pr-10 focus:border-blue-400 focus:outline-none ${
-              readOnly ? 'cursor-not-allowed bg-gray-100 text-gray-500' : ''
+            className={`w-full rounded-lg border px-3 py-2 pr-10 outline-none transition-all focus:ring-4 ${borderColor} ${
+              disabled ? 'bg-gray-100 cursor-not-allowed' : 'bg-white'
             }`}
             value={value}
-            onChange={(e) => onChange(e.target.value)}
-            onBlur={onBlur} // ✅ Đã gắn onBlur
+            onChange={(e) => onChange && onChange(e.target.value)}
+            onBlur={onBlur}
+            placeholder={placeholder}
+            disabled={disabled}
           />
-          {icon && (
-            <button
-              type='button'
-              onClick={handleIconClick}
-              className='absolute top-1/2 right-0 -translate-y-1/2 text-gray-400 transition-colors hover:text-blue-400 focus:ring-0 focus:outline-none'
-            >
-              {icon}
-            </button>
-          )}
+
+          {/* Icon Trạng thái (Phải) */}
+          <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none flex items-center bg-white pl-1">
+            {isLoading ? (
+              <Loader2 className="h-5 w-5 animate-spin text-blue-600" />
+            ) : hasError ? (
+              <AlertCircle className="h-5 w-5 text-red-500" />
+            ) : isSuccess ? (
+              <Check className="h-5 w-5 text-green-500" />
+            ) : (
+              // Nếu có icon tùy chỉnh (ví dụ Calendar) thì hiện khi ko có trạng thái đặc biệt
+              icon && <span className="text-gray-400">{icon}</span>
+            )}
+          </div>
         </div>
       ) : (
-        <p>{value}</p>
+        <div className="flex items-center gap-2 min-h-[40px] px-3 py-2 rounded-lg border border-transparent hover:border-gray-200 transition-colors">
+          {icon && <span className="text-gray-500">{icon}</span>}
+          <p className="text-gray-800 font-medium">{value || <span className="text-gray-400 italic">Empty</span>}</p>
+        </div>
       )}
-      {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
+
+      {/* Thông báo lỗi có hiệu ứng hiện dần */}
+      {hasError && (
+        <p className="text-xs text-red-500 font-medium animate-in fade-in slide-in-from-top-1">
+          {error}
+        </p>
+      )}
     </div>
   );
 };
