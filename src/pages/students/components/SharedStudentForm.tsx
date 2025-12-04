@@ -1,6 +1,5 @@
-// fileName: SharedStudentForm.tsx
-import React, { useState, useEffect } from 'react';
-import { Student, updateStudent } from '@/services/studentService';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Student, updateStudent, checkStudentExistence } from '@/services/studentService'; // Import checkStudentExistence
 import { Button } from '@/components/ui/button';
 import EditField from '@/components/layout/EditField';
 import SelectField from '@/components/layout/SelectField';
@@ -16,6 +15,7 @@ import { Building, DoorOpen, AlertTriangle, XCircle, CheckCircle, Lock } from 'l
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter as ModalFooter } from '@/components/ui/dialog';
 import { getDisciplineByStudentId, Discipline } from '@/services/disciplineService';
 import { cn } from '@/lib/utils';
+import debounce from 'lodash/debounce'; // Import debounce
 
 interface Address { commune: string; province: string; }
 interface Props { student: Student; mode: 'view' | 'edit'; onSubmit?: (data: Student) => Promise<void>; }
@@ -29,7 +29,13 @@ const fetchApi = async (url: string, params: Record<string, any> = {}) => {
   if (!response.ok) throw new Error('API Error');
   return response.json();
 };
-
+const ETHNIC_GROUP_OPTIONS = [
+  { label: 'Kinh', value: 'Kinh' },
+  { label: 'Tày', value: 'Tay' },
+  { label: 'Thái', value: 'Thai' },
+  { label: 'Hoa', value: 'Hoa' },
+  { label: 'Khác', value: 'Other' },
+];
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PHONE_REGEX = /^(\+?\d{1,3})?[\s-]?\d{9,}$/;
 const MIN_BIRTHDAY = new Date('2000-01-01');
@@ -63,6 +69,10 @@ const SharedStudentForm: React.FC<Props> = ({ student, mode, onSubmit }) => {
 
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState<string | null>(null);
+  
+  // State cho hiệu ứng loading kiểm tra trùng
+  const [checkingField, setCheckingField] = useState<string | null>(null);
+
   const [provinceOptions, setProvinceOptions] = useState<Option[]>([]);
   const [wardOptions, setWardOptions] = useState<Option[]>([]);
   const [guardianWardOptions, setGuardianWardOptions] = useState<Option[]>([]);
@@ -88,14 +98,11 @@ const SharedStudentForm: React.FC<Props> = ({ student, mode, onSubmit }) => {
   const isExpelled = trainingScore < EXPULSION_THRESHOLD;
 
   useEffect(() => {
-    // Nếu bị đuổi học (điểm < 70) và trạng thái chưa chuẩn
     if (isExpelled) {
-       // Chỉ update nếu state hiện tại khác mong muốn để tránh loop vô hạn
        if (formData.study_status !== 'Non_Active' || formData.building_id || formData.room_id) {
            setFormData(prev => ({ 
              ...prev, 
              study_status: 'Non_Active',
-             // ✅ FIX: Dùng chuỗi rỗng '' thay vì undefined để đảm bảo field được override
              building_id: '',
              room_id: ''
            }));
@@ -120,7 +127,7 @@ const SharedStudentForm: React.FC<Props> = ({ student, mode, onSubmit }) => {
   const parseListField = (value: string) => value ? value.split(';').map((v) => v.trim()) : [];
   const stringifyListField = (list: string[]) => list.map((v) => v.trim()).join(';');
   
-  const RedStar = <span className="text-red-500">*</span>;
+  // const RedStar = <span className="text-red-500">*</span>; // Bỏ RedStar dạng JSX để tránh lỗi label
 
   useEffect(() => {
     const fetchForms = async () => {
@@ -194,10 +201,69 @@ const SharedStudentForm: React.FC<Props> = ({ student, mode, onSubmit }) => {
     });
   };
 
+  // -------------------------------------------------------
+  // 1. Logic Check Server (EDIT MODE)
+  // -------------------------------------------------------
+  const checkServerSide = async (field: 'student_id' | 'cccd' | 'guardian_cccd', value: string) => {
+    if (!value) return;
+
+    // QUAN TRỌNG: Ở chế độ Edit, nếu giá trị KHÔNG thay đổi so với ban đầu -> Bỏ qua check
+    // (Tránh báo lỗi "Đã tồn tại" với chính nó)
+    const originalValue = (student as any)[field];
+    if (value === originalValue) return;
+
+    // Validate format sơ bộ
+    if (field === 'student_id' && !/^[A-Za-z0-9]{7}$/.test(value)) return;
+    if ((field === 'cccd' || field === 'guardian_cccd') && !/^\d{12}$/.test(value)) return;
+
+    setCheckingField(field);
+    try {
+      const exists = await checkStudentExistence(field, value);
+      
+      if (exists) {
+        let msg = '';
+        if (field === 'student_id') msg = 'Mã sinh viên này đã tồn tại.';
+        else if (field === 'cccd') msg = 'CCCD này đã tồn tại.';
+        else if (field === 'guardian_cccd') msg = 'CCCD người thân này đã tồn tại ở hồ sơ khác.';
+        
+        setFieldErrors((prev) => ({ ...prev, [field]: msg }));
+      } else {
+        setFieldErrors((prev) => {
+          if (prev[field] && prev[field].includes('tồn tại')) {
+            const newErrors = { ...prev };
+            delete newErrors[field];
+            return newErrors;
+          }
+          return prev;
+        });
+      }
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setCheckingField(null);
+    }
+  };
+
+  // Debounce
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const debouncedCheck = useCallback(
+    debounce((field: 'student_id' | 'cccd' | 'guardian_cccd', value: string) => {
+      checkServerSide(field, value);
+    }, 500), 
+    [student] // Thêm dependency student để so sánh với giá trị gốc
+  );
+
   const handleChange = (field: keyof Student | string, value: any) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
     clearFieldError(field as string);
     setFormError(null);
+
+    // Trigger Live Check
+    if (isEdit) {
+      if (field === 'student_id' || field === 'cccd' || field === 'guardian_cccd') {
+         debouncedCheck(field as any, value as string);
+      }
+    }
   };
 
   const hasValidAddressList = (value: string) => {
@@ -219,14 +285,26 @@ const SharedStudentForm: React.FC<Props> = ({ student, mode, onSubmit }) => {
       let error = '';
       const requiredFields = ['ssn', 'student_id', 'fullname', 'birthday', 'sex', 'faculty', 'study_status', 'guardian_cccd', 'guardian_name', 'guardian_relationship', 'guardian_birthday'];
       if (requiredFields.includes(field) && !stringVal) {
-         error = `Trường này không được để trống.`;
-      } else {
-        switch (field) {
+         setFieldErrors((prev) => ({ ...prev, [field]: `Trường này không được để trống.` }));
+         return;
+      }
+      
+      switch (field) {
             case 'ssn': if (!/^\d{8}$/.test(stringVal)) error = 'Internal ID phải gồm 8 chữ số.'; break;
             case 'student_id': if (!/^[A-Za-z0-9]{7}$/.test(stringVal)) error = 'MSSV phải gồm 7 ký tự.'; break;
-            case 'cccd': if (stringVal && !/^\d{12}$/.test(stringVal)) error = 'CCCD phải gồm 12 chữ số.'; break;
+            
+            case 'cccd': 
+                if (stringVal && !/^\d{12}$/.test(stringVal)) error = 'CCCD phải gồm 12 chữ số.'; 
+                else if (stringVal === (formData as any).guardian_cccd) error = 'CCCD sinh viên trùng với người thân.';
+                break;
+
             case 'birthday': { const d = new Date(stringVal); const today = new Date(); if (Number.isNaN(d.getTime()) || d < MIN_BIRTHDAY || d > today) error = 'Ngày sinh không hợp lệ.'; break; }
-            case 'guardian_cccd': if (stringVal && !/^\d{12}$/.test(stringVal)) error = 'CCCD người thân phải gồm 12 chữ số.'; break;
+            
+            case 'guardian_cccd': 
+                if (stringVal && !/^\d{12}$/.test(stringVal)) error = 'CCCD người thân phải gồm 12 chữ số.'; 
+                else if (stringVal === (formData as any).cccd) error = 'CCCD người thân không được trùng với sinh viên.';
+                break;
+
             case 'guardian_birthday': if (!isValidGuardianBirthday(stringVal)) error = 'Ngày sinh người thân không hợp lệ (1950-2005).'; break;
             case 'emails': { const list = parseListField(stringVal).filter(Boolean); if (list.length > 0 && list.some((e) => !EMAIL_REGEX.test(e))) error = 'Email không đúng định dạng.'; break; }
             case 'phone_numbers': { const list = parseListField(stringVal).filter(Boolean); if (list.length > 0 && list.some((p) => !PHONE_REGEX.test(p))) error = 'Số điện thoại không hợp lệ.'; break; }
@@ -234,12 +312,24 @@ const SharedStudentForm: React.FC<Props> = ({ student, mode, onSubmit }) => {
             case 'guardian_phone_numbers': { const list = parseListField(stringVal).filter(Boolean); if (list.length > 0 && list.some((p) => !PHONE_REGEX.test(p))) error = 'SĐT người thân không hợp lệ.'; break; }
             case 'guardian_addresses': if (stringVal && !hasValidAddressList(stringVal)) error = 'Địa chỉ người thân chưa đầy đủ.'; break;
             default: break;
-        }
       }
-      if (error) setFieldErrors((prev) => ({ ...prev, [field]: error })); else clearFieldError(field);
+      
+      if (error) {
+          setFieldErrors((prev) => ({ ...prev, [field]: error })); 
+      } else {
+          // Chỉ clear nếu không phải lỗi từ server (Live check)
+          setFieldErrors((prev) => {
+              if (prev[field] && prev[field].includes('tồn tại')) return prev;
+              const updated = { ...prev };
+              delete updated[field];
+              return updated;
+          });
+      }
   };
 
   const handleBlur = (field: string) => { if (isEdit) validateField(field); };
+  
+  // ... (Các hàm handleAddress, handleList giữ nguyên)
   const handleAddressChange = (i: number, field: keyof Address, val: string, key: string) => {
     let addresses = parseAddressField((formData as any)[key] || '');
     while (addresses.length <= i) addresses.push({ commune: '', province: '' });
@@ -283,8 +373,17 @@ const SharedStudentForm: React.FC<Props> = ({ student, mode, onSubmit }) => {
     const stringVal = (f: string) => (formData as any)[f] ? String((formData as any)[f]).trim() : '';
     const required = ['ssn', 'student_id', 'fullname', 'birthday', 'sex', 'faculty', 'study_status', 'guardian_cccd', 'guardian_name', 'guardian_relationship', 'guardian_birthday'];
     for (const f of required) { if (!stringVal(f)) { isValid = false; break; } }
+    
+    // Check trùng nhau lần cuối khi Save
+    if ((formData as any).cccd && (formData as any).guardian_cccd && (formData as any).cccd === (formData as any).guardian_cccd) {
+        setFieldErrors(prev => ({ ...prev, guardian_cccd: 'CCCD người thân không được trùng với sinh viên.' }));
+        isValid = false;
+    }
+
+    // Check xem còn lỗi Server nào chưa resolve không
+    if (Object.values(fieldErrors).some(e => e)) isValid = false;
+
     if (!isValid) { setFormError(GENERAL_FORM_ERROR_MESSAGE); return false; }
-    if (Object.values(fieldErrors).some(e => e)) return false;
     return true;
   };
 
@@ -308,7 +407,6 @@ const SharedStudentForm: React.FC<Props> = ({ student, mode, onSubmit }) => {
       const last_name = parts.length ? parts[parts.length - 1] : '';
       const first_name = parts.length > 1 ? parts.slice(0, -1).join(' ') : '';
       
-      // ✅ FIX 2: Ép buộc ghi đè lại nếu bị đuổi (Phòng hờ trường hợp useEffect chưa kịp chạy hoặc UI bị lỗi)
       const finalBuildingId = isExpelled ? '' : (formData.building_id || '');
       const finalRoomId = isExpelled ? '' : (formData.room_id || '');
       const finalStatus = isExpelled ? 'Non_Active' : formData.study_status;
@@ -323,7 +421,6 @@ const SharedStudentForm: React.FC<Props> = ({ student, mode, onSubmit }) => {
         phone_numbers: formData.phone_numbers || '',
         addresses: formData.addresses || '', 
         has_health_insurance: !!(formData as any).has_health_insurance,
-        // Sử dụng giá trị đã ép buộc
         building_id: finalBuildingId,
         room_id: finalRoomId,
         study_status: finalStatus
@@ -351,6 +448,7 @@ const SharedStudentForm: React.FC<Props> = ({ student, mode, onSubmit }) => {
       <div className='col-span-full mb-4 text-2xl font-semibold'>{isEdit ? 'Edit Student Information' : 'Student Information'}</div>
       {formError && <div className='col-span-full rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700'>{formError}</div>}
 
+      {/* --- CẢNH BÁO KỶ LUẬT --- */}
       {disciplines.length > 0 && isView && (
         <div className="col-span-full flex justify-end mb-4">
           <Button style={{ backgroundColor: '#F8F8F8', color: '#B42318' }} className="gap-2 font-semibold shadow-md animate-pulse" onClick={() => setIsDisciplineModalOpen(true)}>
@@ -377,37 +475,51 @@ const SharedStudentForm: React.FC<Props> = ({ student, mode, onSubmit }) => {
         </div>
       )}
 
-      <EditField label={<span>Internal ID {RedStar}</span>} value={formData.ssn} isEditing={false} onChange={(v) => handleChange('ssn', v)} />
-      <EditField label={<span>Student ID {RedStar}</span>} value={formData.student_id || ''} isEditing={isEdit} onChange={(v) => handleChange('student_id', v)} onBlur={() => handleBlur('student_id')} error={fieldErrors.student_id} />
-      <EditField label={<span>CCCD {RedStar}</span>} value={(formData as any).cccd || ''} isEditing={isEdit} onChange={(v) => handleChange('cccd', v)} onBlur={() => handleBlur('cccd')} error={fieldErrors.cccd} />
-      <EditField label={<span>Full name {RedStar}</span>} value={(formData as any).fullname || ''} isEditing={isEdit} onChange={(v) => handleChange('fullname', v)} onBlur={() => handleBlur('fullname')} error={fieldErrors.fullname} />
-      <EditField label={<span>Birthday {RedStar}</span>} value={formData.birthday ? new Date(formData.birthday).toISOString().slice(0, 10) : ''} type='date' isEditing={isEdit} onChange={(v) => handleChange('birthday', v)} onBlur={() => handleBlur('birthday')} error={fieldErrors.birthday} icon={<img src={CalendarIcon} className='h-5 w-5' />} />
-      <SelectField label={<span>Sex {RedStar}</span>} value={formData.sex} options={[{ label: 'Male', value: 'M' }, { label: 'Female', value: 'F' }]} isEditing={isEdit} onChange={(v) => handleChange('sex', v)} onBlur={() => handleBlur('sex')} error={fieldErrors.sex} />
+      <EditField label="Internal ID *" value={formData.ssn} isEditing={false} onChange={(v) => handleChange('ssn', v)} />
+      
+      {/* STUDENT ID (Có Live Check) */}
+      <EditField 
+          label="Student ID *" 
+          value={formData.student_id || ''} 
+          isEditing={isEdit} 
+          onChange={(v) => handleChange('student_id', v)} 
+          onBlur={() => handleBlur('student_id')} 
+          error={fieldErrors.student_id} 
+          isLoading={checkingField === 'student_id'}
+      />
+      
+      {/* CCCD (Có Live Check) */}
+      <EditField 
+          label="CCCD *" 
+          value={(formData as any).cccd || ''} 
+          isEditing={isEdit} 
+          onChange={(v) => handleChange('cccd', v)} 
+          onBlur={() => handleBlur('cccd')} 
+          error={fieldErrors.cccd} 
+          isLoading={checkingField === 'cccd'}
+      />
+      
+      <EditField label="Full name *" value={(formData as any).fullname || ''} isEditing={isEdit} onChange={(v) => handleChange('fullname', v)} onBlur={() => handleBlur('fullname')} error={fieldErrors.fullname} />
+      <EditField label="Birthday *" value={formData.birthday ? new Date(formData.birthday).toISOString().slice(0, 10) : ''} type='date' isEditing={isEdit} onChange={(v) => handleChange('birthday', v)} onBlur={() => handleBlur('birthday')} error={fieldErrors.birthday} icon={<img src={CalendarIcon} className='h-5 w-5' />} />
+      <SelectField label="Sex *" value={formData.sex} options={[{ label: 'Male', value: 'M' }, { label: 'Female', value: 'F' }]} isEditing={isEdit} onChange={(v) => handleChange('sex', v)} onBlur={() => handleBlur('sex')} error={fieldErrors.sex} />
       <BooleanSelectField label='Has health insurance' value={(formData as any).has_health_insurance} options={[{ label: 'Yes', value: true }, { label: 'No', value: false }]} isEditing={isEdit} onChange={(v) => handleChange('has_health_insurance' as any, v)} />
       <EditField label='Health State' value={formData.health_state || ''} isEditing={isEdit} onChange={(v) => handleChange('health_state', v)} />
-      <EditField label='Ethnic Group' value={formData.ethnic_group || ''} isEditing={isEdit} onChange={(v) => handleChange('ethnic_group', v)} />
-      <SelectField label='Faculty' value={formData.faculty || ''} options={[{ label: 'Information Technology', value: 'Information Technology' }, { label: 'Mechanical Engineering', value: 'Mechanical Engineering' }, { label: 'Civil Engineering', value: 'Civil Engineering' }, { label: 'Environmental Engineering', value: 'Environmental Engineering' }, { label: 'Logistics and Supply Chain Management', value: 'Logistics and Supply Chain Management' }, { label: 'Biotechnology', value: 'Biotechnology' }, { label: 'Computer Science', value: 'Computer Science' },]} isEditing={isEdit} onChange={(v) => handleChange('faculty', v)} onBlur={() => handleBlur('faculty')} error={fieldErrors.faculty} />
+      <SelectField label="Ethnic Group *" value={formData.ethnic_group} isEditing options={ETHNIC_GROUP_OPTIONS} onChange={(v) => handleChange('ethnic_group', v)} onBlur={() => handleBlur('ethnic_group')} error={fieldErrors.ethnic_group} />      <SelectField label='Faculty' value={formData.faculty || ''} options={[{ label: 'Information Technology', value: 'Information Technology' }, { label: 'Mechanical Engineering', value: 'Mechanical Engineering' }, { label: 'Civil Engineering', value: 'Civil Engineering' }, { label: 'Environmental Engineering', value: 'Environmental Engineering' }, { label: 'Logistics and Supply Chain Management', value: 'Logistics and Supply Chain Management' }, { label: 'Biotechnology', value: 'Biotechnology' }, { label: 'Computer Science', value: 'Computer Science' },]} isEditing={isEdit} onChange={(v) => handleChange('faculty', v)} onBlur={() => handleBlur('faculty')} error={fieldErrors.faculty} />
       
       <div className="relative">
         <SelectField 
-          label={<span>Residence status {RedStar}</span>} 
+          label="Residence status *"
           value={formData.study_status || ''} 
           options={[{ label: 'Active', value: 'Active' }, { label: 'Non Active', value: 'Non_Active' }]} 
           isEditing={isEdit && !isExpelled} 
-          
           onChange={(v) => {
             setFormData(prev => ({
               ...prev,
               study_status: v,
-              // ✅ Đảm bảo set thành chuỗi rỗng '' khi chọn Non_Active
               ...(v === 'Non_Active' ? { building_id: '', room_id: '' } : {})
             }));
-            
-            if (v === 'Non_Active' && isEdit) {
-              toast('Đã chuyển sang Non Active: Sinh viên sẽ được rời khỏi phòng.', { icon: 'ℹ️' });
-            }
+            if (v === 'Non_Active' && isEdit) toast('Đã chuyển sang Non Active: Sinh viên sẽ được rời khỏi phòng.', { icon: 'ℹ️' });
           }} 
-          
           onBlur={() => handleBlur('study_status')}
           error={fieldErrors.study_status} 
         />
@@ -416,57 +528,62 @@ const SharedStudentForm: React.FC<Props> = ({ student, mode, onSubmit }) => {
 
       {/* --- BUILDING & ROOM SECTION --- */}
       {(isView || (formData.study_status === 'Active' && formData.building_id)) && (
-  <div className="col-span-full mt-2 rounded-xl border border-blue-200 bg-blue-50 p-4 shadow-sm md:col-span-2">
-    <div className="grid grid-cols-2 gap-6">
-      
-      <div className="flex flex-col">
-        <span className="mb-1 text-xs font-medium uppercase tracking-wider text-blue-500">Building</span>
-        <div className="flex items-center gap-2 text-xl font-bold text-blue-900 md:text-2xl">
-          <Building className="h-6 w-6 text-blue-400" />
-          {formData.building_id || 'N/A'}
-        </div>
-      </div>
+        <div className="col-span-full mt-2 rounded-xl border border-blue-200 bg-blue-50 p-4 shadow-sm md:col-span-2">
+            <div className="grid grid-cols-2 gap-6">
+            <div className="flex flex-col">
+                <span className="mb-1 text-xs font-medium uppercase tracking-wider text-blue-500">Building</span>
+                <div className="flex items-center gap-2 text-xl font-bold text-blue-900 md:text-2xl">
+                <Building className="h-6 w-6 text-blue-400" />
+                {formData.building_id || 'N/A'}
+                </div>
+            </div>
 
-      <div 
-        className={cn(
-          "flex flex-col transition-all rounded-md p-1 -ml-1", 
-          (isView && formData.building_id && formData.room_id) 
-            ? "cursor-pointer hover:bg-blue-100 hover:shadow-sm group relative" 
-            : ""
-        )}
-        onClick={() => {
-          if (isView && formData.building_id && formData.room_id) {
-             navigate(`/rooms/view/${formData.building_id}/${formData.room_id}`);
-          }
-        }}
-        title={isView ? "Click để xem chi tiết phòng" : ""}
-      >
-        <span className="mb-1 text-xs font-medium uppercase tracking-wider text-blue-500 group-hover:text-blue-700">
-            Room {(isView && formData.room_id) && <span className="ml-1 text-[10px] lowercase italic">(click to view)</span>}
-        </span>
-        <div className="flex items-center gap-2 text-xl font-bold text-blue-900 md:text-2xl group-hover:text-blue-700">
-          <DoorOpen className="h-6 w-6 text-blue-400 group-hover:text-blue-600" />
-          {formData.room_id || 'N/A'}
+            <div 
+                className={cn(
+                "flex flex-col transition-all rounded-md p-1 -ml-1", 
+                (isView && formData.building_id && formData.room_id) ? "cursor-pointer hover:bg-blue-100 hover:shadow-sm group relative" : ""
+                )}
+                onClick={() => {
+                if (isView && formData.building_id && formData.room_id) navigate(`/rooms/view/${formData.building_id}/${formData.room_id}`);
+                }}
+            >
+                <span className="mb-1 text-xs font-medium uppercase tracking-wider text-blue-500 group-hover:text-blue-700">
+                    Room {(isView && formData.room_id) && <span className="ml-1 text-[10px] lowercase italic">(click to view)</span>}
+                </span>
+                <div className="flex items-center gap-2 text-xl font-bold text-blue-900 md:text-2xl group-hover:text-blue-700">
+                <DoorOpen className="h-6 w-6 text-blue-400 group-hover:text-blue-600" />
+                {formData.room_id || 'N/A'}
+                </div>
+            </div>
+            </div>
         </div>
-      </div>
-
-    </div>
-  </div>
-)}
+      )}
 
       <InputAddress label='Addresses' values={parseAddressField(formData.addresses || '')} isEditing={isEdit} provinceOptions={provinceOptions} wardOptions={wardOptions} selectedProvinceCode={selectedProvinceCode} onChange={(i, f, v) => handleAddressChange(i, f, v, 'addresses')} onAdd={() => handleAddAddress('addresses')} onRemove={(i) => handleRemoveAddress('addresses', i)} onBlur={() => handleBlur('addresses')} error={fieldErrors.addresses} />
       <EditForm label='Emails' values={parseListField(formData.emails || '')} isEditing={isEdit} onChange={(i, v) => handleListChange('emails', i, v)} onAdd={() => handleAddToList('emails')} onRemove={(i) => handleRemoveFromList('emails', i)} onBlur={() => handleBlur('emails')} error={fieldErrors.emails} />
       <EditForm label='Phone Numbers' values={parseListField(formData.phone_numbers || '')} isEditing={isEdit} onChange={(i, v) => handleListChange('phone_numbers', i, v)} onAdd={() => handleAddToList('phone_numbers')} onRemove={(i) => handleRemoveFromList('phone_numbers', i)} onBlur={() => handleBlur('phone_numbers')} error={fieldErrors.phone_numbers} />
 
       <div className='col-span-full mt-6 text-lg font-semibold'>Guardian Information:</div>
-      <EditField label={<span>CCCD {RedStar}</span>} value={(formData as any).guardian_cccd || ''} isEditing={isEdit} onChange={(v) => handleChange('guardian_cccd' as any, v)} onBlur={() => handleBlur('guardian_cccd')} error={fieldErrors.guardian_cccd} />
-      <EditField label={<span>Full name {RedStar}</span>} value={(formData as any).guardian_name || ''} isEditing={isEdit} onChange={(v) => handleChange('guardian_name' as any, v)} onBlur={() => handleBlur('guardian_name')} error={fieldErrors.guardian_name} />
-      <SelectField label={<span>Relationship {RedStar}</span>} value={(formData as any).guardian_relationship || ''} options={[{ label: 'Father', value: 'Father' }, { label: 'Mother', value: 'Mother' }, { label: 'Other', value: 'Other' }]} isEditing={isEdit} onChange={(v) => handleChange('guardian_relationship' as any, v)} onBlur={() => handleBlur('guardian_relationship')} error={fieldErrors.guardian_relationship} />
+      
+      {/* GUARDIAN CCCD (Có Live Check) */}
+      <EditField 
+          label="CCCD *" 
+          value={(formData as any).guardian_cccd || ''} 
+          isEditing={isEdit} 
+          onChange={(v) => handleChange('guardian_cccd' as any, v)} 
+          onBlur={() => handleBlur('guardian_cccd')} 
+          error={fieldErrors.guardian_cccd} 
+          isLoading={checkingField === 'guardian_cccd'}
+      />
+      
+      <EditField label="Full name *" value={(formData as any).guardian_name || ''} isEditing={isEdit} onChange={(v) => handleChange('guardian_name' as any, v)} onBlur={() => handleBlur('guardian_name')} error={fieldErrors.guardian_name} />
+      <SelectField label="Relationship *" value={(formData as any).guardian_relationship || ''} options={[{ label: 'Father', value: 'Father' }, { label: 'Mother', value: 'Mother' }, { label: 'Other', value: 'Other' }]} isEditing={isEdit} onChange={(v) => handleChange('guardian_relationship' as any, v)} onBlur={() => handleBlur('guardian_relationship')} error={fieldErrors.guardian_relationship} />
       <EditField label='Occupation' value={(formData as any).guardian_occupation || ''} isEditing={isEdit} onChange={(v) => handleChange('guardian_occupation' as any, v)} />
-      <EditField label={<span>Birthday {RedStar}</span>} value={(formData as any).guardian_birthday ? String((formData as any).guardian_birthday).slice(0, 10) : ''} type='date' isEditing={isEdit} onChange={(v) => handleChange('guardian_birthday' as any, v)} onBlur={() => handleBlur('guardian_birthday')} error={fieldErrors.guardian_birthday} icon={<img src={CalendarIcon} className='h-5 w-5' />} />
+      <EditField label="Birthday *" value={(formData as any).guardian_birthday ? String((formData as any).guardian_birthday).slice(0, 10) : ''} type='date' isEditing={isEdit} onChange={(v) => handleChange('guardian_birthday' as any, v)} onBlur={() => handleBlur('guardian_birthday')} error={fieldErrors.guardian_birthday} icon={<img src={CalendarIcon} className='h-5 w-5' />} />
       <EditForm label='Phone Numbers' values={parseListField((formData as any).guardian_phone_numbers || '')} isEditing={isEdit} onChange={(i, v) => handleListChange('guardian_phone_numbers' as any, i, v)} onAdd={() => handleAddToList('guardian_phone_numbers' as any)} onRemove={(i) => handleRemoveFromList('guardian_phone_numbers' as any, i)} onBlur={() => handleBlur('guardian_phone_numbers')} error={fieldErrors.guardian_phone_numbers} />
       <InputAddress label='Addresses' values={parseAddressField((formData as any).guardian_addresses || '')} isEditing={isEdit} provinceOptions={provinceOptions} wardOptions={guardianWardOptions} selectedProvinceCode={selectedGuardianProvinceCode} onChange={(i, f, v) => handleAddressChange(i, f, v, 'guardian_addresses')} onAdd={() => handleAddAddress('guardian_addresses')} onRemove={(i) => handleRemoveAddress('guardian_addresses', i)} onBlur={() => handleBlur('guardian_addresses')} error={fieldErrors.guardian_addresses} />
 
+      {/* ... (Discipline Modal & Footer giữ nguyên) */}
       <Dialog open={isDisciplineModalOpen} onOpenChange={setIsDisciplineModalOpen}>
         <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>

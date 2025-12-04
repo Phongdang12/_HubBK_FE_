@@ -24,12 +24,12 @@ interface StudentTableProps {
   
   // Props sort hiện tại của bạn
   sorts: {
-    field: 'student_id' | 'faculty' | 'building_id' | 'room_id' | 'last_name'; 
+    field: 'student_id' | 'faculty' | 'building_id' | 'room_id' | 'last_name' | 'first_name' | 'study_status' | 'ssn'; 
     order: 'asc' | 'desc';
   }[];
   
   onSort: (
-    field: 'student_id' | 'faculty' | 'building_id' | 'room_id' | 'last_name',
+    field: 'student_id' | 'faculty' | 'building_id' | 'room_id' | 'last_name' | 'first_name' | 'study_status' | 'ssn',
     e?: React.MouseEvent
   ) => void;
 

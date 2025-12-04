@@ -8,8 +8,10 @@ import Sidebar from '@/components/layout/Sidebar';
 import Header from '@/components/layout/Header';
 import { useAuth } from '@/contexts/auth/useAuth';
 import { Button } from '@/components/ui/button';
-import { AlertCircle } from 'lucide-react'; 
+import { AlertCircle, Loader2 } from 'lucide-react'; 
 import { AssignRoomDialog } from './components/AssignRoomDialog';
+// 👇 1. Import Skeleton
+import { TableSkeleton } from '@/components/layout/TableSkeleton';
 
 const StudentsPage = () => {
   const { isAuthenticated, user } = useAuth();
@@ -47,14 +49,11 @@ const StudentsPage = () => {
     | 'first_name'
     | 'last_name';
 
-  // 🔥 THAY ĐỔI Ở ĐÂY:
-  // Mặc định sắp xếp theo room_id ASC. 
-  // Trong SQL, ASC sẽ đưa NULL (chưa có phòng) lên đầu danh sách.
   const [sorts, setSorts] = useState<
     { field: SortField; order: 'asc' | 'desc' }[]
   >([
-    { field: 'room_id', order: 'asc' },      // Ưu tiên 1: Người chưa có phòng lên trước
-    { field: 'student_id', order: 'asc' }    // Ưu tiên 2: Xếp theo MSSV
+    { field: 'room_id', order: 'asc' },      
+    { field: 'student_id', order: 'asc' }    
   ]);
 
   const [loading, setLoading] = useState(true);
@@ -71,12 +70,14 @@ const StudentsPage = () => {
     });
     setPage(1); 
   };
-
+  const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
   // ================= FETCH DATA =================
   const fetchStudentsData = async () => {
     try {
       setLoading(true);
       setError(null);
+
+      await wait(300);
 
       const res = await getPaginatedStudents(
         globalQuery ? 1 : page,
@@ -112,7 +113,6 @@ const StudentsPage = () => {
     }
   };
 
-  // ================= FETCH MISSING ROOM COUNT =================
   const fetchMissingRoomCount = async () => {
     try {
         const data = await getStudentsWithoutRoom();
@@ -131,7 +131,7 @@ const StudentsPage = () => {
     isAuthenticated,
     user,
     page,
-    sorts, // Khi sorts thay đổi (mặc định ban đầu), nó sẽ fetch lại theo thứ tự mới
+    sorts, 
     facultyFilter,
     roomFilter,
     buildingFilter,
@@ -139,7 +139,6 @@ const StudentsPage = () => {
     globalQuery,
   ]);
 
-  // Khi đổi filter → reset page về 1
   useEffect(() => {
     setPage(1);
   }, [facultyFilter, roomFilter, buildingFilter, statusFilter, globalQuery]);
@@ -153,19 +152,17 @@ const StudentsPage = () => {
     navigate('/students/add');
   };
 
-  // Xử lý mở Modal Gán Phòng
   const handleOpenAssignModal = (student: Student) => {
     if (!student.room_id) {
         setSelectedStudentForAssign({ 
             ssn: student.ssn, 
             name: `${student.first_name} ${student.last_name}`,
-            sex: student.sex // Cần lấy giới tính để lọc phòng
+            sex: student.sex 
         });
         setAssignModalOpen(true);
     }
   };
 
-  // ========== GLOBAL SEARCH FILTER ==========
   const filteredStudents = students.filter((s) => {
     if (!globalQuery) return true;
     const q = globalQuery.toLowerCase();
@@ -187,6 +184,12 @@ const StudentsPage = () => {
     : filteredStudents;
 
   const totalClientPages = Math.ceil(filteredStudents.length / limit);
+
+  // 👇 Helper xác định trạng thái loading
+  // Initial Load: Loading thật và chưa có data
+  const isInitialLoading = loading && students.length === 0;
+  // Refetching: Loading thật nhưng đã có data cũ (làm mờ)
+  const isRefetching = loading && students.length > 0;
 
   return (
     <div className="flex min-h-screen w-full flex-col">
@@ -248,16 +251,18 @@ const StudentsPage = () => {
                     setBuildingFilter('');
                     setStatusFilter('');
                     setPage(1);
-                    // Reset sort về mặc định để đưa SV chưa có phòng lên đầu lại
                     setSorts([{ field: 'room_id', order: 'asc' }, { field: 'student_id', order: 'asc' }]);
                   }}
                 />
               </div>
 
-              <div className="mx-6 rounded-md border">
-                {loading ? (
-                  <div className="p-8 text-center">
-                    Loading students...
+              {/* 👇 KHU VỰC HIỂN THỊ BẢNG */}
+              <div className="mx-6 rounded-md border relative min-h-[300px]">
+                
+                {/* CASE 1: INITIAL LOADING (SKELETON) */}
+                {isInitialLoading ? (
+                  <div className="p-4">
+                    <TableSkeleton />
                   </div>
                 ) : error ? (
                   <div className="p-8 text-center text-red-600">
@@ -265,50 +270,62 @@ const StudentsPage = () => {
                   </div>
                 ) : (
                   <>
-                    <StudentTable
-                      students={displayedStudents}
-                      onDelete={handleDelete}
-                      sorts={sorts}
-                      onSort={(field) => toggleSort(field)}
-                      globalQuery={globalQuery}
-                      onAssign={handleOpenAssignModal}
-                    />
-
-                    {/* PAGINATION */}
-                    {(globalQuery
-                      ? filteredStudents.length > limit
-                      : totalPages > 1) && (
-                      <div className="mt-4 flex items-center justify-center space-x-2 pb-4">
-                        <button
-                          onClick={() => setPage((p) => Math.max(p - 1, 1))}
-                          disabled={page === 1}
-                          className="rounded border px-3 py-1 disabled:opacity-50 hover:bg-gray-50"
-                        >
-                          Prev
-                        </button>
-
-                        <span className="text-sm font-medium">
-                          Page {page} / {globalQuery ? totalClientPages : totalPages}
-                        </span>
-
-                        <button
-                          onClick={() =>
-                            setPage((p) =>
-                              Math.min(
-                                p + 1,
-                                globalQuery ? totalClientPages : totalPages
-                              )
-                            )
-                          }
-                          disabled={
-                            page === (globalQuery ? totalClientPages : totalPages)
-                          }
-                          className="rounded border px-3 py-1 disabled:opacity-50 hover:bg-gray-50"
-                        >
-                          Next
-                        </button>
-                      </div>
+                    {/* CASE 2: REFETCHING (DIMMING + SPINNER) */}
+                    {isRefetching && (
+                        <div className="absolute inset-0 z-10 bg-white/50 flex items-center justify-center backdrop-blur-[1px] transition-all duration-200">
+                            <div className="bg-white p-2 rounded-full shadow-lg">
+                                <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
+                            </div>
+                        </div>
                     )}
+
+                    {/* NỘI DUNG CHÍNH (Bảng) */}
+                    <div className={isRefetching ? "opacity-40 transition-opacity duration-200" : "transition-opacity duration-200"}>
+                        <StudentTable
+                        students={displayedStudents}
+                        onDelete={handleDelete}
+                        sorts={sorts}
+                        onSort={(field) => toggleSort(field)}
+                        globalQuery={globalQuery}
+                        onAssign={handleOpenAssignModal}
+                        />
+
+                        {/* PAGINATION */}
+                        {(globalQuery
+                        ? filteredStudents.length > limit
+                        : totalPages > 1) && (
+                        <div className="mt-4 flex items-center justify-center space-x-2 pb-4">
+                            <button
+                            onClick={() => setPage((p) => Math.max(p - 1, 1))}
+                            disabled={page === 1}
+                            className="rounded border px-3 py-1 disabled:opacity-50 hover:bg-gray-50"
+                            >
+                            Prev
+                            </button>
+
+                            <span className="text-sm font-medium">
+                            Page {page} / {globalQuery ? totalClientPages : totalPages}
+                            </span>
+
+                            <button
+                            onClick={() =>
+                                setPage((p) =>
+                                Math.min(
+                                    p + 1,
+                                    globalQuery ? totalClientPages : totalPages
+                                )
+                                )
+                            }
+                            disabled={
+                                page === (globalQuery ? totalClientPages : totalPages)
+                            }
+                            className="rounded border px-3 py-1 disabled:opacity-50 hover:bg-gray-50"
+                            >
+                            Next
+                            </button>
+                        </div>
+                        )}
+                    </div>
                   </>
                 )}
               </div>
@@ -318,7 +335,6 @@ const StudentsPage = () => {
         </main>
       </div>
 
-      {/* MODAL GÁN PHÒNG */}
       {selectedStudentForAssign && (
         <AssignRoomDialog 
             isOpen={assignModalOpen}
