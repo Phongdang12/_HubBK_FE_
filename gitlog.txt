@@ -1,0 +1,39 @@
+=== FE REPO GIT LOG ===
+0c8dc9c - Hải Nam, 2025-12-04 : Merge pull request #8 from Phongdang12/NamH
+f99f063 - namcris07, 2025-12-04 : Add UX
+863c35e - phongdang12, 2025-12-03 : feat(statistics): add violation period filter and KPI layout tweaks
+6804fb8 - phongdang12, 2025-12-03 : Remove _HubBK_BE_ embedded repository
+b03fbc8 - phongdang12, 2025-12-03 : Resolve merge conflict in SharedDisciplineForm.tsx - keep HaiNam branch changes
+92a222d - phongdang12, 2025-12-03 : Update code and add _HubBK_BE_ folder
+db7f028 - namcris07, 2025-12-03 : Update
+e4df6ce - Phongdang12, 2025-11-30 : Merge pull request #6 from Phongdang12/HNam
+7acbf75 - namcris07, 2025-11-30 : Update student,room, discripline
+004c233 - phongdang12, 2025-11-24 : feat: add statistics dashboard components, update discipline form, and update dependencies
+da76ee0 - phongdang12, 2025-11-20 : feat: update and add new features, bug fixes, and improvements
+b84aa16 - Phongdang12, 2025-11-20 : Merge pull request #5 from Phongdang12/quan
+e9918b4 - quan, 2025-11-20 : Basic room
+8cc2f69 - Phongdang12, 2025-11-19 : Merge pull request #4 from Phongdang12/Nam
+56aa47f - namcris07, 2025-11-19 : Add Discipline
+b1858fd - Phongdang12, 2025-11-13 : Merge pull request #1 from Phongdang12/Nam
+5c65348 - namcris07, 2025-11-12 : Update student
+83b8590 - Phongdang12, 2025-11-11 : Initial commit
+=== BE REPO GIT LOG ===
+cb43739 - Hải Nam, 2025-12-04 : Merge pull request #8 from Phongdang12/NamH
+52a5641 - namcris07, 2025-12-04 : Update
+ba18a93 - Phongdang12, 2025-12-03 : Create .env file for database configuration
+cd0a906 - phongdang12, 2025-12-03 : Fix statistics overview & occupancy by building; add list_rooms_building procedure
+d2b45e1 - Phongdang12, 2025-12-03 : Merge pull request #7 from Phongdang12/HaiNam
+4d2fb7b - phongdang12, 2025-12-03 : Initial commit
+75b8478 - namcris07, 2025-12-03 : Update
+e4ce39e - namcris07, 2025-12-03 : Update
+d5cdcde - Phongdang12, 2025-11-30 : Merge pull request #6 from Phongdang12/HNam
+1579a3e - namcris07, 2025-11-30 : Update BE
+bb61a90 - phongdang12, 2025-11-24 : Fix statistics modal filtering: Add building, date, severity, and month filters to drill-down API
+d42bee8 - phongdang12, 2025-11-20 : feat: update discipline, rooms, students modules and add discipline.validator.ts
+d6643d0 - Phongdang12, 2025-11-20 : Merge pull request #5 from Phongdang12/quan
+35a433c - quan, 2025-11-20 : Basic room
+9f5882c - Phongdang12, 2025-11-19 : Merge pull request #4 from Phongdang12/Nam
+155473e - namcris07, 2025-11-19 : Update Discipline
+68a5229 - Phongdang12, 2025-11-13 : Merge pull request #1 from Phongdang12/Nam
+80a1fcf - namcris07, 2025-11-12 : Update student
+952b78e - Phongdang12, 2025-11-11 : Initial commit
