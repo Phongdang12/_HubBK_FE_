@@ -3,6 +3,8 @@
 f99f063 - namcris07, 2025-12-04 : Add UX
 863c35e - phongdang12, 2025-12-03 : feat(statistics): add violation period filter and KPI layout tweaks
 6804fb8 - phongdang12, 2025-12-03 : Remove _HubBK_BE_ embedded repository
+52t01f6 - khoidagn205, 2025-12-03 : Fix statistics - 2
+9301ze7 - khoidagn205, 2025-12-03 : Fix statistics
 b03fbc8 - phongdang12, 2025-12-03 : Resolve merge conflict in SharedDisciplineForm.tsx - keep HaiNam branch changes
 92a222d - phongdang12, 2025-12-03 : Update code and add _HubBK_BE_ folder
 db7f028 - namcris07, 2025-12-03 : Update
@@ -24,6 +26,7 @@ ba18a93 - Phongdang12, 2025-12-03 : Create .env file for database configuration
 cd0a906 - phongdang12, 2025-12-03 : Fix statistics overview & occupancy by building; add list_rooms_building procedure
 d2b45e1 - Phongdang12, 2025-12-03 : Merge pull request #7 from Phongdang12/HaiNam
 4d2fb7b - phongdang12, 2025-12-03 : Initial commit
+73abd08 - khoidagn205, 2025-12-03: Fix statistics
 75b8478 - namcris07, 2025-12-03 : Update
 e4ce39e - namcris07, 2025-12-03 : Update
 d5cdcde - Phongdang12, 2025-11-30 : Merge pull request #6 from Phongdang12/HNam
